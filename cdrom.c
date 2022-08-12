@@ -1130,12 +1130,12 @@ void cdrInterrupt() {
 
 			SetResultSize(1);
 			cdr.StatP |= STATUS_ROTATING;
-			if (cdr.Seeked == 0) {
+			/*if (cdr.Seeked == 0) {
 				cdr.Seeked = 1;
 				cdr.StatP |= STATUS_SEEK;
 			}
 			cdr.StatP |= STATUS_READ;
-			cdr.Result[0] = cdr.StatP;
+			cdr.Result[0] = cdr.StatP;*/
 			cdr.Stat = Acknowledge;
 
         	Find_CurTrack(cdr.SetSectorPlay);
@@ -1144,8 +1144,8 @@ void cdrInterrupt() {
 				// Read* acts as play for cdda tracks in cdda mode
 				goto do_CdlPlay;
 
-			cdr.Reading = 1;
-			cdr.FirstSector = 1;*/
+			cdr.Reading = 1;*/
+			cdr.FirstSector = 1;
 
 			// Fighting Force 2 - update subq time immediately
 			// - fixes new game
@@ -1165,7 +1165,7 @@ void cdrInterrupt() {
 			C-12 - Final Resistance - doesn't like seek
 			*/
 
-			/*if (cdr.Seeked != SEEK_DONE) {
+			if (cdr.Seeked != SEEK_DONE) {
 				cdr.StatP |= STATUS_SEEK;
 				cdr.StatP &= ~STATUS_READ;
 
@@ -1179,10 +1179,13 @@ void cdrInterrupt() {
 				cdr.StatP &= ~STATUS_SEEK;
 
 				CDREAD_INT((cdr.Mode & 0x80) ? (cdReadTime) : cdReadTime * 2);
-			}*/
+			}
+			
+			cdr.Result[0] = cdr.StatP;
+			start_rotating = 1;
 
 //			CDREAD_INT((cdr.Mode & 0x80) ? (cdReadTime / 2) : cdReadTime);
-			CDREAD_INT(0x40000);
+			//CDREAD_INT(0x40000);
 			break;
 
 //		case REPPLAY_ACK:
@@ -1311,11 +1314,14 @@ void cdrReadInterrupt() {
 	SetResultSize(1);
 	cdr.StatP |= STATUS_READ|STATUS_ROTATING;
 	cdr.StatP &= ~STATUS_SEEK;
-    cdr.Result[0] = cdr.StatP;
+	cdr.Result[0] = cdr.StatP;
+	cdr.Seeked = SEEK_DONE;
 
 	buf = CDR_getBuffer();
-	if (buf == NULL) {
+	if (buf == NULL)
 		cdr.RErr = -1;
+
+	if (cdr.RErr == -1) {
 #ifdef CDR_LOG
 		fprintf(emuLog, "cdrReadInterrupt() Log: err\n");
 #endif
@@ -1458,7 +1464,7 @@ void cdrWrite1(unsigned char rt) {
 #endif
 //	psxHu8(0x1801) = rt;
     #ifdef SHOW_DEBUG
-	sprintf(txtbuffer, "cdrWrite1 %x (%s)", rt, CmdName[rt]);
+	sprintf(txtbuffer, "cdrWrite1 %x (%s) cdr.Ctrl %d", rt, CmdName[rt], cdr.Ctrl & 0x1);
 	DEBUG_print(txtbuffer, DBG_CDR1);
 	sprintf(txtbuffer, "old cmd %x (%s)", cdr.Cmd, CmdName[cdr.Cmd]);
 	DEBUG_print(txtbuffer, DBG_CDR2);
@@ -1558,11 +1564,12 @@ void cdrWrite1(unsigned char rt) {
 			StartReading(1);
         	break;
 
-    	case CdlStandby:
+    	case CdlReset:
+	    case CdlInit:
+		    cdr.Seeked = SEEK_DONE;
+		case CdlStandby:
     	case CdlStop:
     	case CdlPause:
-		case CdlReset:
-    	case CdlInit:
 			StopCdda();
 			StopReading();
         	break;
@@ -1727,6 +1734,10 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 	switch (chcr) {
 		case 0x11000000:
 		case 0x11400100:
+		    #ifdef SHOW_DEBUG
+            sprintf(txtbuffer, "cdrDma3 cdr.Readed %d", cdr.Readed);
+            DEBUG_print(txtbuffer, DBG_CDR4);
+            #endif // DISP_DEBUG
 			if (cdr.Readed == 0) {
 #ifdef CDR_LOG
 				CDR_LOG("psxDma3() Log: *** DMA 3 *** NOT READY\n");

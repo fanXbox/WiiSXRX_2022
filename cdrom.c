@@ -424,7 +424,7 @@ void ReadTrack() {
 // AddIrqQueue=====================
 void AddIrqQueue(unsigned char irq, unsigned long ecycle) {
 	if (cdr.Irq != 0) {
-		if (irq == cdr.Irq || irq + 0x100 == cdr.Irq) {
+		if (irq == cdr.Irq || irq + 0x20 == cdr.Irq) {
 			cdr.IrqRepeated = 1;
 			CDR_INT(ecycle);
 			return;
@@ -809,7 +809,7 @@ void cdrInterrupt() {
 			 *
 			 * We will need to get around this for Bedlam/Rise 2 later...
 			 * */
-			if (cdr.DriveState != DRIVESTATE_STANDBY)
+			/*if (cdr.DriveState != DRIVESTATE_STANDBY)
 			{
 				delay = 7000;
 			}
@@ -817,8 +817,9 @@ void cdrInterrupt() {
 			{
 				delay = (((cdr.Mode & MODE_SPEED) ? 2 : 1) * (1000000));
 				CDRMISC_INT((cdr.Mode & MODE_SPEED) ? cdReadTime / 2 : cdReadTime);
-			}
-			AddIrqQueue(CdlPause + 0x20, delay >> 1);
+			}*/
+			//AddIrqQueue(CdlPause + 0x20, delay >> 1);
+			AddIrqQueue(CdlPause + 0x20, cdReadTime * 3);
 			cdr.Ctrl|= 0x80;
 			break;
 
@@ -986,11 +987,16 @@ void cdrInterrupt() {
     	case CdlSeekL:
 			SetResultSize(1);
 			cdr.StatP |= STATUS_ROTATING;
-        	cdr.Result[0] = cdr.StatP;
 			cdr.StatP |= STATUS_SEEK;
+			cdr.Result[0] = cdr.StatP;
         	cdr.Stat = Acknowledge;
 			cdr.Seeked = 1;
 			AddIrqQueue(CdlSeekL + 0x20, 0x800);
+			/*StopCdda();
+			StopReading();
+			CDRMISC_INT(cdr.Seeked == SEEK_DONE ? 0x800 : cdReadTime * 4);
+			cdr.Seeked = SEEK_PENDING;
+			start_rotating = 1;*/
 			break;
 
     	case CdlSeekL + 0x20:
@@ -1005,10 +1011,15 @@ void cdrInterrupt() {
     	case CdlSeekP:
 			SetResultSize(1);
 			cdr.StatP |= STATUS_ROTATING;
-        	cdr.Result[0] = cdr.StatP;
 			cdr.StatP |= STATUS_SEEK;
+			cdr.Result[0] = cdr.StatP;
         	cdr.Stat = Acknowledge;
 			AddIrqQueue(CdlSeekP + 0x20, 0x800);
+			/*StopCdda();
+			StopReading();
+			CDRMISC_INT(cdr.Seeked == SEEK_DONE ? 0x800 : cdReadTime * 4);
+			cdr.Seeked = SEEK_PENDING;
+			start_rotating = 1;*/
 			break;
 
     	case CdlSeekP + 0x20:
@@ -1140,6 +1151,12 @@ void cdrInterrupt() {
 
         	Find_CurTrack(cdr.SetSectorPlay);
 
+        	#ifdef SHOW_DEBUG
+            sprintf(txtbuffer, "READ_ACK Mode %d CurTrack %d \n", cdr.Mode & MODE_CDDA, cdr.CurTrack);
+            DEBUG_print(txtbuffer, DBG_PROFILE_IDLE);
+            writeLogFile(txtbuffer);
+            #endif // DISP_DEBUG
+
 			/*if ((cdr.Mode & MODE_CDDA) && cdr.CurTrack > 1)
 				// Read* acts as play for cdda tracks in cdda mode
 				goto do_CdlPlay;
@@ -1180,7 +1197,7 @@ void cdrInterrupt() {
 
 				CDREAD_INT((cdr.Mode & 0x80) ? (cdReadTime) : cdReadTime * 2);
 			}
-			
+
 			cdr.Result[0] = cdr.StatP;
 			start_rotating = 1;
 
@@ -1216,11 +1233,11 @@ void cdrInterrupt() {
 			return;
 
 		default:
-		    SetResultSize(1);
-			cdr.StatP |= STATUS_ROTATING;
-        	cdr.Result[0] = cdr.StatP;
-			cdr.Stat = Complete;
-			//cdr.Irq = 0;
+
+			SetResultSize(2);
+			cdr.Result[0] = cdr.StatP | STATUS_ERROR;
+			cdr.Result[1] = ERROR_INVALIDCMD;
+			cdr.Stat = DiskError;
 			break;
 	}
 
@@ -1246,6 +1263,7 @@ void cdrInterrupt() {
 		psxHu32ref(0x1070) |= SWAP32((u32)0x4);
 		psxRegs.interrupt |= 0x80000000;
 	}
+	cdr.ParamC = 0;
 
 #ifdef CDR_LOG
 	CDR_LOG("cdrInterrupt() Log: CDR Interrupt IRQ %x\n", Irq);
@@ -1295,16 +1313,24 @@ void cdrAttenuate(s16 *buf, int samples, int stereo)
 	}
 }
 
+int readInterruptLoop = 0;
 void cdrReadInterrupt() {
 	u8 *buf;
 
 	if (!cdr.Reading)
 		return;
 
+    #ifdef SHOW_DEBUG
+	sprintf(txtbuffer, "ReadInterrupt (%s) %x cdr.RErr %d Channel %d \n", CmdName[cdr.Irq], cdr.Stat, cdr.RErr, cdr.Channel);
+	DEBUG_print(txtbuffer, DBG_CDR3);
+	writeLogFile(txtbuffer);
+    #endif // DISP_DEBUG
 	if (cdr.Irq || cdr.Stat) {
+	    readInterruptLoop++;
 		CDREAD_INT(0x800);
 		return;
 	}
+	readInterruptLoop = 0;
 
 #ifdef CDR_LOG
 	CDR_LOG("cdrReadInterrupt() Log: KEY END");
@@ -1322,6 +1348,11 @@ void cdrReadInterrupt() {
 		cdr.RErr = -1;
 
 	if (cdr.RErr == -1) {
+        #ifdef SHOW_DEBUG
+        sprintf(txtbuffer, "ReadInterrupt cdr.RErr \n");
+        DEBUG_print(txtbuffer, DBG_CDR4);
+        writeLogFile(txtbuffer);
+        #endif // DISP_DEBUG
 #ifdef CDR_LOG
 		fprintf(emuLog, "cdrReadInterrupt() Log: err\n");
 #endif
@@ -1355,6 +1386,11 @@ void cdrReadInterrupt() {
 			((cdr.Mode & MODE_SF) ? (cdr.Transfer[4+1] == cdr.Channel) : 1) &&
 			 (cdr.Transfer[4 + 0] == cdr.File) && cdr.Channel != 255) {
 			int ret = xa_decode_sector(&cdr.Xa, cdr.Transfer+4, cdr.FirstSector);
+			#ifdef SHOW_DEBUG
+            sprintf(txtbuffer, "playADPCMchannel ret %d\n", ret);
+            DEBUG_print(txtbuffer, DBG_CDR4);
+            writeLogFile(txtbuffer);
+            #endif // DISP_DEBUG
 			if (!ret) {
 				SPU_playADPCMchannel(&cdr.Xa);
 				cdr.FirstSector = 0;
@@ -1375,12 +1411,31 @@ void cdrReadInterrupt() {
 
     cdr.Readed = 0;
 
+	//CDREAD_INT((cdr.Mode & MODE_SPEED) ? (cdReadTime / 2) : cdReadTime);
+
+	/*
+	Croc 2: $40 - only FORM1 (*)
+	Judge Dredd: $C8 - only FORM1 (*)
+	Sim Theme Park - no adpcm at all (zero)
+	*/
+
+	//if (!(cdr.Mode & MODE_STRSND) || !(cdr.Transfer[4+2] & 0x4)) {
+	//	cdr.Stat = DataReady;
+	//	setIrq();
+	//}
+	//ReadTrack();
+
 	if ((cdr.Transfer[4+2] & 0x80) && (cdr.Mode & 0x2)) { // EOF
 #ifdef CDR_LOG
 		CDR_LOG("cdrReadInterrupt() Log: Autopausing read\n");
 #endif
 //		AddIrqQueue(AUTOPAUSE, 0x800);
 		AddIrqQueue(CdlPause, 0x800);
+		#ifdef SHOW_DEBUG
+        sprintf(txtbuffer, "ReadInterrupt EOF \n");
+        DEBUG_print(txtbuffer, DBG_CDR4);
+        writeLogFile(txtbuffer);
+        #endif // DISP_DEBUG
 	}
 	else {
 		ReadTrack();
@@ -1464,8 +1519,9 @@ void cdrWrite1(unsigned char rt) {
 #endif
 //	psxHu8(0x1801) = rt;
     #ifdef SHOW_DEBUG
-	sprintf(txtbuffer, "cdrWrite1 %x (%s) cdr.Ctrl %d", rt, CmdName[rt], cdr.Ctrl & 0x1);
+	sprintf(txtbuffer, "cdrWrite1 %x (%s) cdr.Ctrl %d\n", rt, CmdName[rt], cdr.Ctrl & 0x1);
 	DEBUG_print(txtbuffer, DBG_CDR1);
+	writeLogFile(txtbuffer);
 	sprintf(txtbuffer, "old cmd %x (%s)", cdr.Cmd, CmdName[cdr.Cmd]);
 	DEBUG_print(txtbuffer, DBG_CDR2);
     #endif // DISP_DEBUG
@@ -1507,10 +1563,20 @@ void cdrWrite1(unsigned char rt) {
 				*(u32 *)cdr.SetSector = *(u32 *)cdr.SetSectorSeek;
 			}*/
 
+            #ifdef SHOW_DEBUG
+            sprintf(txtbuffer, "CdlSetloc %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
+            DEBUG_print(txtbuffer, DBG_PROFILE_IDLE);
+            writeLogFile(txtbuffer);
+            #endif // DISP_DEBUG
             // MM must be BCD, SS must be BCD and <0x60, FF must be BCD and <0x75
             if (((cdr.Param[0] & 0x0F) > 0x09) || (cdr.Param[0] > 0x99) || ((cdr.Param[1] & 0x0F) > 0x09) || (cdr.Param[1] >= 0x60) || ((cdr.Param[2] & 0x0F) > 0x09) || (cdr.Param[2] >= 0x75))
             {
                 //CDR_LOG("Invalid/out of range seek to %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
+                //error = ERROR_INVALIDARG;
+				//SetResultSize(2);
+			    //cdr.Result[0] = cdr.StatP | STATUS_ERROR;
+			    //cdr.Result[1] = error;
+			    //cdr.Stat = DiskError;
             }
             else
             {
@@ -1520,7 +1586,7 @@ void cdrWrite1(unsigned char rt) {
                 }
 
                 i = msf2sec(cdr.SetSectorPlay);
-                i = abs(i - msf2sec(set_loc));
+                i = abs(i - (int)msf2sec(set_loc));
                 if (i > 16)
                     cdr.Seeked = SEEK_PENDING;
 
@@ -1559,7 +1625,7 @@ void cdrWrite1(unsigned char rt) {
         	break;
 
     	case CdlReadN:
-			//cdr.Irq = 0;
+			cdr.Irq = 0;
 			StopReading();
 			StartReading(1);
         	break;
@@ -1628,7 +1694,7 @@ void cdrWrite1(unsigned char rt) {
         	break;
 
     	case CdlReadS:
-			//cdr.Irq = 0;
+			cdr.Irq = 0;
 			StopReading();
 			StartReading(2);
         	break;
@@ -1734,10 +1800,11 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 	switch (chcr) {
 		case 0x11000000:
 		case 0x11400100:
-		    #ifdef SHOW_DEBUG
-            sprintf(txtbuffer, "cdrDma3 cdr.Readed %d", cdr.Readed);
-            DEBUG_print(txtbuffer, DBG_CDR4);
-            #endif // DISP_DEBUG
+//		    #ifdef SHOW_DEBUG
+//            sprintf(txtbuffer, "cdrDma3 cdr.Readed %d\n", cdr.Readed);
+//            DEBUG_print(txtbuffer, DBG_CDR4);
+//            writeLogFile(txtbuffer);
+//            #endif // DISP_DEBUG
 			if (cdr.Readed == 0) {
 #ifdef CDR_LOG
 				CDR_LOG("psxDma3() Log: *** DMA 3 *** NOT READY\n");
@@ -1785,6 +1852,13 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 
 			psxCpu->Clear(madr, cdsize >> 2);
 			cdr.pTransfer += cdsize;
+			#ifdef SHOW_DEBUG
+			if ((u32)(cdr.pTransfer) > (u32)(cdr.Transfer + DATA_SIZE)) {
+                sprintf(txtbuffer, "cdrDma3 pTransfer overFlow \n");
+                DEBUG_print(txtbuffer, DBG_CDR4);
+                writeLogFile(txtbuffer);
+			}
+            #endif // DISP_DEBUG
 
 			if( chcr == 0x11400100 ) {
 				HW_DMA3_MADR = SWAPu32(madr + cdsize);

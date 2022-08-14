@@ -589,9 +589,11 @@ void cdrPlayInterrupt()
 void cdrInterrupt() {
 	int no_busy_error = 0;
 	int start_rotating = 0;
+	int error = 0;
 	int i;
 	int delay;
 	unsigned char Irq = cdr.Irq;
+	u8 set_loc[3];
 
 	if (cdr.Stat) {
 		CDR_INT(0x800);
@@ -652,12 +654,38 @@ void cdrInterrupt() {
 			break;
 
 		case CdlSetloc:
-			cdr.CmdProcess = 0;
-			SetResultSize(1);
-			cdr.StatP |= STATUS_ROTATING;
-        	cdr.Result[0] = cdr.StatP;
-        	cdr.Stat = Acknowledge;
+			//cdr.CmdProcess = 0;
+			//SetResultSize(1);
+			//cdr.StatP |= STATUS_ROTATING;
+        	//cdr.Result[0] = cdr.StatP;
+        	//cdr.Stat = Acknowledge;
         	//cdr.Irq = 0;
+			// MM must be BCD, SS must be BCD and <0x60, FF must be BCD and <0x75
+			if (((cdr.Param[0] & 0x0F) > 0x09) || (cdr.Param[0] > 0x99) || ((cdr.Param[1] & 0x0F) > 0x09) || (cdr.Param[1] >= 0x60) || ((cdr.Param[2] & 0x0F) > 0x09) || (cdr.Param[2] >= 0x75))
+			{
+				//CDR_LOG("Invalid/out of range seek to %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
+				error = ERROR_INVALIDARG;
+				goto set_error;
+			}
+			else
+			{
+				for (i = 0; i < 3; i++)
+				{
+					set_loc[i] = btoi(cdr.Param[i]);
+				}
+
+				i = msf2sec(cdr.SetSectorPlay);
+				i = abs(i - msf2sec(set_loc));
+				if (i > 16)
+					cdr.Seeked = SEEK_PENDING;
+
+				memcpy(cdr.SetSector, set_loc, 3);
+				cdr.SetSector[3] = 0;
+				cdr.SetlocPending = 1;
+			}
+			SetResultSize(1);
+        	cdr.Result[0] = cdr.StatP;
+	        cdr.Stat = Acknowledge;
 			break;
 
 		do_CdlPlay:
@@ -1233,10 +1261,14 @@ void cdrInterrupt() {
 			return;
 
 		default:
+			//CDR_LOG_I("Invalid command: %02x\n", Irq);
+			error = ERROR_INVALIDCMD;
+			// FALLTHROUGH
 
+		set_error:
 			SetResultSize(2);
 			cdr.Result[0] = cdr.StatP | STATUS_ERROR;
-			cdr.Result[1] = ERROR_INVALIDCMD;
+			cdr.Result[1] = error;
 			cdr.Stat = DiskError;
 			break;
 	}
@@ -1263,6 +1295,7 @@ void cdrInterrupt() {
 		psxHu32ref(0x1070) |= SWAP32((u32)0x4);
 		psxRegs.interrupt |= 0x80000000;
 	}
+	//setIrq();
 	cdr.ParamC = 0;
 
 #ifdef CDR_LOG
@@ -1554,48 +1587,48 @@ void cdrWrite1(unsigned char rt) {
     	case CdlNop:
         	break;
 
-    	case CdlSetloc:
-			/*StopReading();
-			cdr.Seeked = 0;
-        	for (i=0; i<3; i++) cdr.SetSector[i] = btoi(cdr.Param[i]);
-        	cdr.SetSector[3] = 0;*/
-/*        	if ((cdr.SetSector[0] | cdr.SetSector[1] | cdr.SetSector[2]) == 0) {
-				*(u32 *)cdr.SetSector = *(u32 *)cdr.SetSectorSeek;
-			}*/
-
-            #ifdef SHOW_DEBUG
-            sprintf(txtbuffer, "CdlSetloc %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
-            DEBUG_print(txtbuffer, DBG_PROFILE_IDLE);
-            writeLogFile(txtbuffer);
-            #endif // DISP_DEBUG
-            // MM must be BCD, SS must be BCD and <0x60, FF must be BCD and <0x75
-            if (((cdr.Param[0] & 0x0F) > 0x09) || (cdr.Param[0] > 0x99) || ((cdr.Param[1] & 0x0F) > 0x09) || (cdr.Param[1] >= 0x60) || ((cdr.Param[2] & 0x0F) > 0x09) || (cdr.Param[2] >= 0x75))
-            {
-                //CDR_LOG("Invalid/out of range seek to %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
-                //error = ERROR_INVALIDARG;
-				//SetResultSize(2);
-			    //cdr.Result[0] = cdr.StatP | STATUS_ERROR;
-			    //cdr.Result[1] = error;
-			    //cdr.Stat = DiskError;
-            }
-            else
-            {
-                for (i = 0; i < 3; i++)
-                {
-                    set_loc[i] = btoi(cdr.Param[i]);
-                }
-
-                i = msf2sec(cdr.SetSectorPlay);
-                i = abs(i - (int)msf2sec(set_loc));
-                if (i > 16)
-                    cdr.Seeked = SEEK_PENDING;
-
-                memcpy(cdr.SetSector, set_loc, 3);
-                cdr.SetSector[3] = 0;
-                cdr.SetlocPending = 1;
-            }
-        	//cdr.Stat = NoIntr;
-        	break;
+//    	case CdlSetloc:
+//			/*StopReading();
+//			cdr.Seeked = 0;
+//        	for (i=0; i<3; i++) cdr.SetSector[i] = btoi(cdr.Param[i]);
+//        	cdr.SetSector[3] = 0;*/
+///*        	if ((cdr.SetSector[0] | cdr.SetSector[1] | cdr.SetSector[2]) == 0) {
+//				*(u32 *)cdr.SetSector = *(u32 *)cdr.SetSectorSeek;
+//			}*/
+//
+//            #ifdef SHOW_DEBUG
+//            sprintf(txtbuffer, "CdlSetloc %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
+//            DEBUG_print(txtbuffer, DBG_PROFILE_IDLE);
+//            writeLogFile(txtbuffer);
+//            #endif // DISP_DEBUG
+//            // MM must be BCD, SS must be BCD and <0x60, FF must be BCD and <0x75
+//            if (((cdr.Param[0] & 0x0F) > 0x09) || (cdr.Param[0] > 0x99) || ((cdr.Param[1] & 0x0F) > 0x09) || (cdr.Param[1] >= 0x60) || ((cdr.Param[2] & 0x0F) > 0x09) || (cdr.Param[2] >= 0x75))
+//            {
+//                //CDR_LOG("Invalid/out of range seek to %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
+//                //error = ERROR_INVALIDARG;
+//				//SetResultSize(2);
+//			    //cdr.Result[0] = cdr.StatP | STATUS_ERROR;
+//			    //cdr.Result[1] = error;
+//			    //cdr.Stat = DiskError;
+//            }
+//            else
+//            {
+//                for (i = 0; i < 3; i++)
+//                {
+//                    set_loc[i] = btoi(cdr.Param[i]);
+//                }
+//
+//                i = msf2sec(cdr.SetSectorPlay);
+//                i = abs(i - (int)msf2sec(set_loc));
+//                if (i > 16)
+//                    cdr.Seeked = SEEK_PENDING;
+//
+//                memcpy(cdr.SetSector, set_loc, 3);
+//                cdr.SetSector[3] = 0;
+//                cdr.SetlocPending = 1;
+//            }
+//        	//cdr.Stat = NoIntr;
+//        	break;
 
     	case CdlPlay:
 //        	if (!cdr.SetSector[0] && !cdr.SetSector[1] && !cdr.SetSector[2]) {

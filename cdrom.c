@@ -1582,8 +1582,8 @@ void cdrWrite1(unsigned char rt) {
 			}*/
 
             #ifdef SHOW_DEBUG
-            sprintf(txtbuffer, "CdlSetloc %02X:%02X:%02X\n", cdr.Param[0], cdr.Param[1], cdr.Param[2]);
-            DEBUG_print(txtbuffer, DBG_PROFILE_IDLE);
+            sprintf(txtbuffer, "CdlSetloc %02X:%02X:%02X ParamP %d\n", cdr.Param[0], cdr.Param[1], cdr.Param[2], cdr.ParamP);
+            DEBUG_print(txtbuffer, DBG_PROFILE_GFX);
             writeLogFile(txtbuffer);
             #endif // DISP_DEBUG
             // MM must be BCD, SS must be BCD and <0x60, FF must be BCD and <0x75
@@ -1794,7 +1794,7 @@ void cdrWrite3(unsigned char rt) {
 		return;
 	}
 
-	if ((rt & 0x80) && !(cdr.Ctrl & 0x1) && cdr.Readed == 0) {
+	if ((rt & 0x80) && cdr.Readed == 0) {
 		cdr.Readed = 1;
 		cdr.pTransfer = cdr.Transfer;
 

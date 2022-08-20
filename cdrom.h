@@ -94,7 +94,7 @@ typedef struct {
 	unsigned char SetSector[4];
 	//unsigned char SetSectorSeek[4];
 	unsigned char Track;
-	bool Play, Muted;
+	bool Play, Muted, PlayAdpcm;
 	int CurTrack;
 	int Mode, File, Channel;
 	int Reset;

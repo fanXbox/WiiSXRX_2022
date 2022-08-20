@@ -274,7 +274,7 @@ INLINE int FModChangeFrequency(int *SB, int pitch, int ns)
  if(NP<0x1)    NP=0x1;
 
  //sinc=NP<<4;                                           // calc frequency
- sinc = (SPU_FREQ * NP / 44100) << 4;                                           // calc frequency
+ sinc = (44100 * NP / SPU_FREQ) << 4;                    // calc frequency
  //if(spu_config.iUseInterpolation==1)                   // freq change in simple interpolation mode
   SB[32]=1;
  iFMod[ns]=0;

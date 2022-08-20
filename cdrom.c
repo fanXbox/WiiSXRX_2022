@@ -837,8 +837,8 @@ void cdrInterrupt() {
 			cdr.StatP |= STATUS_ROTATING;
         	cdr.Result[0] = cdr.StatP;
         	cdr.Stat = Acknowledge;
-			//AddIrqQueue(CdlStandby + 0x20, WaitTime1st);
-			AddIrqQueue(CdlStandby + 0x100, cdReadTime * 125 / 2);
+			AddIrqQueue(CdlStandby + 0x20, WaitTime1st);
+			//AddIrqQueue(CdlStandby + 0x100, cdReadTime * 125 / 2);
 			break;
 
 		case CdlStandby + 0x20:

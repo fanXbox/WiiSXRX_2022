@@ -78,7 +78,7 @@ typedef struct {
 	unsigned char Cmd;
 	unsigned char Readed;
 	unsigned char SetlocPending;
-	unsigned long Reading;
+	u32 Reading;
 
 	unsigned char ResultTN[6];
 	unsigned char ResultTD[4];
@@ -97,11 +97,11 @@ typedef struct {
 
 	int Init;
 
-	unsigned char Irq;
-	unsigned char IrqRepeated;
-	unsigned long eCycle;
+	u16 Irq;
+	u8 IrqRepeated;
+	u32 eCycle;
 
-	int Seeked;
+	u8 Seeked;
 
 	u8 DriveState;
 	u8 FastForward;

@@ -1334,9 +1334,6 @@ void cdrReadInterrupt() {
 
 	// update for CdlGetlocP
 	ReadTrack(cdr.SetSectorPlay);
-	
-	psxHu32ref(0x1070)|= SWAP32((u32)0x4);
-	psxRegs.interrupt|= 0x80000000;
 }
 
 /*
@@ -1419,15 +1416,10 @@ void cdrWrite1(unsigned char rt) {
 
 	cdr.ResultReady = 0;
 	cdr.Ctrl |= 0x80;
-	// cdr.Stat = NoIntr;
+	// cdr.Stat = NoIntr; 
 	AddIrqQueue(cdr.Cmd, 0x800);
 
 	switch (cdr.Cmd) {
-	case CdlSetloc:
-	    psxHu32ref(0x1070)|= SWAP32((u32)0x4);
-		psxRegs.interrupt|= 0x80000000;
-	    break;
-		
 	case CdlReadN:
 	case CdlReadS:
 	case CdlPause:

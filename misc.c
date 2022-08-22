@@ -91,7 +91,7 @@ void mmssdd( char *b, char *p )
 #define READTRACK() \
 	if (CDR_readTrack(time) == 0) return -1; \
 	buf = (void *)CDR_getBuffer(); \
-	if (buf == NULL) return -1;
+	if (buf == NULL) return -1; \
 	/*else CheckPPFCache((u8 *)buf, time[0], time[1], time[2]);*/
 
 #define READDIR(_dir) \

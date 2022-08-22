@@ -180,7 +180,14 @@ int msf2SectS[] = {
 // 1x = 75 sectors per second
 // PSXCLK = 1 sec in the ps
 // so (PSXCLK / 75) = cdr read time (linuzappz)
-#define cdReadTime (PSXCLK / 75)
+#define cdReadTime         (PSXCLK / 75) / 2  // OK
+#define playAdpcmTime      (PSXCLK * 930 / 4 / 44100) / 2  // OK
+#define WaitTime1st        (0x800)
+#define WaitTime1stInit    (0x13cce >> 1)
+#define WaitTime1stRead    (PSXCLK / 75)   // OK
+#define WaitTime2ndGetID   (0x4a00)  // OK
+#define WaitTime2ndPause   (cdReadTime * 3) // OK
+
 
 enum drive_state {
 	DRIVESTATE_STANDBY = 0,
@@ -301,7 +308,7 @@ void cdrLidSeekInterrupt()
 		{
 			StopCdda();
 			cdr.DriveState = DRIVESTATE_LID_OPEN;
-			CDRLID_INT(0x800);
+			CDRLID_INT(WaitTime1st);
 		}
 		break;
 
@@ -655,7 +662,7 @@ void cdrInterrupt() {
 	// Reschedule IRQ
 	if (cdr.Stat) {
 		CDR_LOG_I("cdrom: stat hack: %02x %x\n", cdr.Irq, cdr.Stat);
-		CDR_INT(0x1000);
+		CDR_INT(WaitTime1st);
 		return;
 	}
 
@@ -803,7 +810,8 @@ void cdrInterrupt() {
 				error = ERROR_INVALIDARG;
 				goto set_error;
 			}
-			AddIrqQueue(CdlStandby + 0x100, cdReadTime * 125 / 2);
+			//AddIrqQueue(CdlStandby + 0x100, cdReadTime * 125 / 2);
+			AddIrqQueue(CdlStandby + 0x100, WaitTime1st);
 			start_rotating = 1;
 			break;
 
@@ -824,12 +832,15 @@ void cdrInterrupt() {
 			StopCdda();
 			StopReading();
 
-			delay = 0x800;
-			if (cdr.DriveState == DRIVESTATE_STANDBY)
-				delay = cdReadTime * 30 / 2;
+			//delay = 0x800;
+			//if (cdr.DriveState == DRIVESTATE_STANDBY)
+			//	delay = cdReadTime * 30 / 2;
 
 			cdr.DriveState = DRIVESTATE_STOPPED;
-			AddIrqQueue(CdlStop + 0x100, delay);
+			//AddIrqQueue(CdlStop + 0x100, delay);
+			cdr.StatP &= ~STATUS_ROTATING;
+			cdr.Result[0] = cdr.StatP;
+			cdr.Stat = Complete;
 			break;
 
 		case CdlStop + 0x100:
@@ -854,7 +865,7 @@ void cdrInterrupt() {
 			 *
 			 * We will need to get around this for Bedlam/Rise 2 later...
 			 * */
-			if (cdr.DriveState == DRIVESTATE_STANDBY)
+			/*if (cdr.DriveState == DRIVESTATE_STANDBY)
 			{
 				delay = 7000;
 			}
@@ -863,7 +874,8 @@ void cdrInterrupt() {
 				delay = (((cdr.Mode & MODE_SPEED) ? 2 : 1) * (1000000));
 				CDRMISC_INT((cdr.Mode & MODE_SPEED) ? cdReadTime / 2 : cdReadTime);
 			}
-			AddIrqQueue(CdlPause + 0x100, delay);
+			AddIrqQueue(CdlPause + 0x100, delay);*/
+			AddIrqQueue(CdlPause + 0x100, WaitTime2ndPause);
 			cdr.Ctrl |= 0x80;
 			break;
 
@@ -876,7 +888,7 @@ void cdrInterrupt() {
 		case CdlReset:
 			cdr.Muted = FALSE;
 			cdr.Mode = 0x20; /* Needed for This is Football 2, Pooh's Party and possibly others. */
-			AddIrqQueue(CdlReset + 0x100, 4100000);
+			AddIrqQueue(CdlReset + 0x100, WaitTime1stInit);
 			no_busy_error = 1;
 			start_rotating = 1;
 			break;
@@ -1003,7 +1015,7 @@ void cdrInterrupt() {
 			break;
 
 		case CdlID:
-			AddIrqQueue(CdlID + 0x100, 20480);
+			AddIrqQueue(CdlID + 0x100, WaitTime2ndGetID);
 			break;
 
 		case CdlID + 0x100:
@@ -1125,7 +1137,7 @@ void cdrInterrupt() {
 			*/
 			cdr.StatP |= STATUS_READ;
 			cdr.StatP &= ~STATUS_SEEK;
-			CDREAD_INT(((cdr.Mode & 0x80) ? (cdReadTime) : cdReadTime * 2) + seekTime);
+			CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2) + seekTime);
 
 			cdr.Result[0] = cdr.StatP;
 			start_rotating = 1;
@@ -1230,7 +1242,7 @@ void cdrReadInterrupt() {
 
 	if (cdr.Irq || cdr.Stat) {
 		CDR_LOG_I("cdrom: read stat hack %02x %x\n", cdr.Irq, cdr.Stat);
-		CDREAD_INT(0x800);
+		CDREAD_INT(WaitTime1st);
 		return;
 	}
 
@@ -1417,7 +1429,7 @@ void cdrWrite1(unsigned char rt) {
 	cdr.ResultReady = 0;
 	cdr.Ctrl |= 0x80;
 	// cdr.Stat = NoIntr; 
-	AddIrqQueue(cdr.Cmd, 0x800);
+	AddIrqQueue(cdr.Cmd, WaitTime1st);
 
 	switch (cdr.Cmd) {
 	case CdlReadN:
@@ -1713,5 +1725,9 @@ int cdrFreeze(gzFile f, int Mode) {
 void LidInterrupt() {
 	getCdInfo();
 	StopCdda();
+
+    cdr.StatP |= STATUS_SHELLOPEN;
+    cdr.DriveState = DRIVESTATE_RESCAN_CD;
+
 	cdrLidSeekInterrupt();
 }

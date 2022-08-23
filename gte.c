@@ -308,22 +308,22 @@ void gteSWC2() {
 }
 
 __inline float NC_OVERFLOW1(float x) {
-	if (x<-2147483648.0) {gteFLAG |= 1<<29;}
-	else if (x> 2147483647.0) {gteFLAG |= 1<<26;}
+	if (x<-2147483648.0) {gteFLAG |= (1 << 31) | (1 << 27);}
+	else if (x> 2147483647.0) {gteFLAG |= 1<<30;}
 
 	return x;
 }
 
 __inline float NC_OVERFLOW2(float x) {
-	if (x<-2147483648.0) {gteFLAG |= 1<<28;}
-	else if (x> 2147483647.0) {gteFLAG |= 1<<25;}
+	if (x<-2147483648.0) {gteFLAG |= (1 << 31) | (1 << 26);}
+	else if (x> 2147483647.0) {gteFLAG |= 1<<29;}
 
 	return x;
 }
 
 __inline float NC_OVERFLOW3(float x) {
-	if (x<-2147483648.0) {gteFLAG |= 1<<27;}
-	else if (x> 2147483647.0) {gteFLAG |= 1<<24;}
+	if (x<-2147483648.0) {gteFLAG |= (1 << 31) | (1 << 25);}
+	else if (x> 2147483647.0) {gteFLAG |= 1<<28;}
 
 	return x;
 }
@@ -336,22 +336,22 @@ __inline float NC_OVERFLOW3(float x) {
 }*/
 
 __inline s32 FNC_OVERFLOW1(s64 x) {
-	if (x< (s64)0xffffffff80000000LL) {gteFLAG |= 1<<29;}
-	else if (x> 2147483647) {gteFLAG |= 1<<26;}
+	if (x< (s64)0xffffffff80000000LL) {gteFLAG |= (1 << 31) | (1 << 27);}
+	else if (x> 2147483647) {gteFLAG |= 1<<30;}
 
 	return (s32)x;
 }
 
 __inline s32 FNC_OVERFLOW2(s64 x) {
-	if (x< (s64)0xffffffff80000000LL) {gteFLAG |= 1<<28;}
-	else if (x> 2147483647) {gteFLAG |= 1<<25;}
+	if (x< (s64)0xffffffff80000000LL) {gteFLAG |= (1 << 31) | (1 << 26);}
+	else if (x> 2147483647) {gteFLAG |= 1<<29;}
 
 	return (s32)x;
 }
 
 __inline s32 FNC_OVERFLOW3(s64 x) {
-	if (x< (s64)0xffffffff80000000LL) {gteFLAG |= 1<<27;}
-	else if (x> 2147483647) {gteFLAG |= 1<<24;}
+	if (x< (s64)0xffffffff80000000LL) {gteFLAG |= (1 << 31) | (1 << 25);}
+	else if (x> 2147483647) {gteFLAG |= 1<<28;}
 
 	return (s32)x;
 }
@@ -382,7 +382,7 @@ __inline float limD1 (float x) { _LIMX(-1024.0, 1023.0, 14); }
 __inline float limD2 (float x) { _LIMX(-1024.0, 1023.0, 13); }
 __inline float limE  (float x) { _LIMX(0.0, 4095.0, 12); }
 
-__inline float limG1(float x) {
+/*__inline float limG1(float x) {
 	if (x > 2147483647.0) { gteFLAG |= (1<<16); } else
 	if (x <-2147483648.0) { gteFLAG |= (1<<15); }
 
@@ -398,7 +398,7 @@ __inline float limG2(float x) {
 	if (x >       1023.0) { x =  1023.0; gteFLAG |= (1<<13); } else
 	if (x <      -1024.0) { x = -1024.0; gteFLAG |= (1<<13); }
 	return (x);
-}
+}*/
 
 __inline s32 F12limA1S(s64 x) { _LIMX(-32768<<12, 32767<<12, 24); }
 __inline s32 F12limA2S(s64 x) { _LIMX(-32768<<12, 32767<<12, 23); }
@@ -423,31 +423,31 @@ __inline s32 FlimE  (s32 x) { _LIMX(0, 65535, 12); }
 //__inline s32 FlimE  (s32 x) { _LIMX(0, 4095, 12); }
 
 __inline s32 FlimG1(s64 x) {
-	if (x > 2147483647) { gteFLAG |= (1<<16); } else
-	if (x < (s64)0xffffffff80000000LL) { gteFLAG |= (1<<15); }
+	if (x > 2147483647) { gteFLAG |= (1 << 31) | (1 << 16); } else
+	if (x < (s64)0xffffffff80000000LL) { gteFLAG |= (1 << 31) | (1 << 15); }
 
-	if (x >       1023) { x =  1023; gteFLAG |= (1<<14); } else
-	if (x <      -1024) { x = -1024; gteFLAG |= (1<<14); }
+	if (x >       1023) { x =  1023; gteFLAG |= ((1 << 31) | (1 << 14)); } else
+	if (x <      -1024) { x = -1024; gteFLAG |= ((1 << 31) | (1 << 14)); }
 	return (x);
 }
 
 __inline s32 FlimG2(s64 x) {
-	if (x > 2147483647) { gteFLAG |= (1<<16); } else
-	if (x < (s64)0xffffffff80000000LL) { gteFLAG |= (1<<15); }
+	if (x > 2147483647) { gteFLAG |= (1 << 31) | (1 << 16); } else
+	if (x < (s64)0xffffffff80000000LL) { gteFLAG |= (1 << 31) | (1 << 15); }
 
-	if (x >       1023) { x =  1023; gteFLAG |= (1<<13); } else
-	if (x <      -1024) { x = -1024; gteFLAG |= (1<<13); }
+	if (x >       1023) { x =  1023; gteFLAG |= ((1 << 31) | (1 << 13)); } else
+	if (x <      -1024) { x = -1024; gteFLAG |= ((1 << 31) | (1 << 13)); }
 	return (x);
 }
 
 #define MAC2IR() { \
-	if (gteMAC1 < (long)(-32768)) { gteIR1=(long)(-32768); gteFLAG|=1<<24;} \
+	if (gteMAC1 < (long)(-32768)) { gteIR1=(long)(-32768); gteFLAG|=(1 << 31) | (1 << 24);} \
 	else \
-	if (gteMAC1 > (long)( 32767)) { gteIR1=(long)( 32767); gteFLAG|=1<<24;} \
+	if (gteMAC1 > (long)( 32767)) { gteIR1=(long)( 32767); gteFLAG|=(1 << 31) | (1 << 24);} \
 	else gteIR1=(long)gteMAC1; \
-	if (gteMAC2 < (long)(-32768)) { gteIR2=(long)(-32768); gteFLAG|=1<<23;} \
+	if (gteMAC2 < (long)(-32768)) { gteIR2=(long)(-32768); gteFLAG|=(1 << 31) | (1 << 23);} \
 	else \
-	if (gteMAC2 > (long)( 32767)) { gteIR2=(long)( 32767); gteFLAG|=1<<23;} \
+	if (gteMAC2 > (long)( 32767)) { gteIR2=(long)( 32767); gteFLAG|=(1 << 31) | (1 << 23);} \
 	else gteIR2=(long)gteMAC2; \
 	if (gteMAC3 < (long)(-32768)) { gteIR3=(long)(-32768); gteFLAG|=1<<22;} \
 	else \
@@ -457,11 +457,11 @@ __inline s32 FlimG2(s64 x) {
 
 
 #define MAC2IR1() {           \
-	if (gteMAC1 < (long)0) { gteIR1=(long)0; gteFLAG|=1<<24;}  \
-	else if (gteMAC1 > (long)(32767)) { gteIR1=(long)(32767); gteFLAG|=1<<24;} \
+	if (gteMAC1 < (long)0) { gteIR1=(long)0; gteFLAG|=(1 << 31) | (1 << 24);}  \
+	else if (gteMAC1 > (long)(32767)) { gteIR1=(long)(32767); gteFLAG|=(1 << 31) | (1 << 24);} \
 	else gteIR1=(long)gteMAC1;                                                         \
-	if (gteMAC2 < (long)0) { gteIR2=(long)0; gteFLAG|=1<<23;}      \
-	else if (gteMAC2 > (long)(32767)) { gteIR2=(long)(32767); gteFLAG|=1<<23;}    \
+	if (gteMAC2 < (long)0) { gteIR2=(long)0; gteFLAG|=(1 << 31) | (1 << 23);}      \
+	else if (gteMAC2 > (long)(32767)) { gteIR2=(long)(32767); gteFLAG|=(1 << 31) | (1 << 23);}    \
 	else gteIR2=(long)gteMAC2;                                                            \
 	if (gteMAC3 < (long)0) { gteIR3=(long)0; gteFLAG|=1<<22;}         \
 	else if (gteMAC3 > (long)(32767)) { gteIR3=(long)(32767); gteFLAG|=1<<22;}       \

@@ -49,6 +49,11 @@ extern "C" {
 #define MIN_VALUE(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a < _b ? _a : _b; })
 #define MAX_VALUE(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); _a > _b ? _a : _b; })
 
+#define NUM_SECTOR_BUFFERS 8
+#define CHG_SECTOR_BUF_WRITE_POS() { \
+    cdr.sectorBufWritePos = (cdr.sectorBufWritePos + 1) & 0x7; \
+}
+
 typedef struct {
 	unsigned char OCUP;
 	unsigned char Reg1Mode;
@@ -59,9 +64,14 @@ typedef struct {
 
 	unsigned char StatP;
 
-	unsigned char Transfer[DATA_SIZE];
+	//unsigned char Transfer[DATA_SIZE];
+	unsigned char Transfer[NUM_SECTOR_BUFFERS][DATA_SIZE];
 	unsigned char *pTransfer;
+	unsigned char *pTransferStart;
 	unsigned int  transferIndex;
+	u8            sectorBufReadPos;
+	u8            sectorBufWritePos;
+	u8            lastSectorHeader[8];
     struct {
 		unsigned char Track;
 		unsigned char Index;

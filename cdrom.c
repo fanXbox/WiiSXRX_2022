@@ -294,7 +294,7 @@ static void *playAdpcmThread(void *param)
 {
     u8 *buf;
 	while (cdr.PlayAdpcm) {
-		int ret = xa_decode_sector(&cdr.Xa, cdr.Transfer + 4, cdr.FirstSector);
+		int ret = xa_decode_sector(&cdr.Xa, cdr.Transfer[cdr.sectorBufReadPos] + 4, cdr.FirstSector);
         #ifdef SHOW_DEBUG
         sprintf(txtbuffer, "Thread playADPCMchannel ret %d\n", ret);
         DEBUG_print(txtbuffer, DBG_CDR4);
@@ -324,13 +324,15 @@ static void *playAdpcmThread(void *param)
             cdr.RErr = -1;
 
         if (cdr.RErr == -1) {
-            memset(cdr.Transfer, 0, DATA_SIZE);
+            memset(cdr.Transfer[cdr.sectorBufWritePos], 0, DATA_SIZE);
             cdr.PlayAdpcm = FALSE;
         }
         else
         {
-            cacheable_kernel_memcpy(cdr.Transfer, buf, DATA_SIZE);
+            cacheable_kernel_memcpy(cdr.Transfer[cdr.sectorBufWritePos], buf, DATA_SIZE);
         }
+        cdr.sectorBufReadPos = cdr.sectorBufWritePos;
+        CHG_SECTOR_BUF_WRITE_POS();
 
         // HACK: stop feeding data while emu is paused
 		extern int stop;
@@ -983,7 +985,7 @@ void cdrInterrupt() {
         	cdr.Stat = Acknowledge;
 			cdr.Mode = 0x20; /* Needed for This is Football 2, Pooh's Party and possibly others. */
 //			if (!cdr.Init) {
-				AddIrqQueue(CdlInit + 0x100, WaitTime1stInit);
+				AddIrqQueue(CdlInit + 0x100, WaitTime1st);
 //			}
             no_busy_error = 1;
 			start_rotating = 1;
@@ -1048,7 +1050,7 @@ void cdrInterrupt() {
 			SetResultSize(8);
 //        	for (i=0; i<8; i++) cdr.Result[i] = itob(cdr.Transfer[i]);
 //        	for (i=0; i<8; i++) cdr.Result[i] = cdr.Transfer[i];
-            memcpy(cdr.Result, cdr.Transfer, 8);
+            memcpy(cdr.Result, cdr.lastSectorHeader, 8);
         	cdr.Stat = Acknowledge;
         	endCmd();
         	break;
@@ -1338,8 +1340,14 @@ void cdrInterrupt() {
 			// - fixes cutscene speech
 			{
 				u8 *buf = CDR_getBuffer();
+				//subq = (struct SubQ*) CDR_getBufferSub();
 				if (buf != NULL)
-					memcpy(cdr.Transfer, buf, 8);
+                {
+                    //u8 control = (u8)(subq->res0[0]);
+                    //if (control & 0x40) {
+                        memcpy(cdr.lastSectorHeader, buf, 8);
+                    //}
+                }
 			}
 
 			/*
@@ -1360,8 +1368,8 @@ void cdrInterrupt() {
 				cdr.StatP |= STATUS_READ;
 				cdr.StatP &= ~STATUS_SEEK;
 			}
-			CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2) + seekTime);
-			//CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2));
+			//CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2) + seekTime);
+			CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2));
 
 			cdr.Result[0] = cdr.StatP;
 			start_rotating = 1;
@@ -1525,7 +1533,8 @@ void cdrReadInterrupt() {
 #ifdef CDR_LOG
 		fprintf(emuLog, "cdrReadInterrupt() Log: err\n");
 #endif
-		memset(cdr.Transfer, 0, DATA_SIZE);
+		memset(cdr.Transfer[cdr.sectorBufWritePos], 0, DATA_SIZE);
+		CHG_SECTOR_BUF_WRITE_POS();
 		cdr.Stat = DiskError;
 		cdr.Result[0] |= STATUS_ERROR;
 		ReadTrack();
@@ -1533,7 +1542,7 @@ void cdrReadInterrupt() {
 		return;
 	}
 
-	cacheable_kernel_memcpy(cdr.Transfer, buf, DATA_SIZE);
+	cacheable_kernel_memcpy(cdr.Transfer[cdr.sectorBufWritePos], buf, DATA_SIZE);
     cdr.Stat = DataReady;
 
 #ifdef CDR_LOG
@@ -1543,23 +1552,23 @@ void cdrReadInterrupt() {
 	if ((!cdr.Muted) && (cdr.Mode & MODE_STRSND) && (!Config.Xa) && (cdr.FirstSector != -1)) { // CD-XA
 		// Firemen 2: Multi-XA files - briefings, cutscenes
 		if( cdr.FirstSector == 1 && (cdr.Mode & MODE_SF)==0 ) {
-			cdr.File = cdr.Transfer[4 + 0];
-			cdr.Channel = cdr.Transfer[4 + 1];
+			cdr.File = cdr.Transfer[cdr.sectorBufWritePos][4 + 0];
+			cdr.Channel = cdr.Transfer[cdr.sectorBufWritePos][4 + 1];
 		}
 		/* Gameblabla
 		 * Skips playing on channel 255.
 		 * Fixes missing audio in Blue's Clues : Blue's Big Musical. (Should also fix Taxi 2)
 		 * TODO : Check if this is the proper behaviour.
 		 * */
-		if((cdr.Transfer[4 + 2] & 0x4) &&
-			((cdr.Mode & MODE_SF) ? (cdr.Transfer[4+1] == cdr.Channel) : 1) &&
-			 (cdr.Transfer[4 + 0] == cdr.File) && cdr.Channel != 255) {
+		if((cdr.Transfer[cdr.sectorBufWritePos][4 + 2] & 0x4) &&
+			((cdr.Mode & MODE_SF) ? (cdr.Transfer[cdr.sectorBufWritePos][4+1] == cdr.Channel) : 1) &&
+			 (cdr.Transfer[cdr.sectorBufWritePos][4 + 0] == cdr.File) && cdr.Channel != 255) {
 
             cdr.PlayAdpcm = TRUE;
             //LWP_CreateThread(&threadPlayAdpcm, playAdpcmThread, NULL, NULL, 0, 80);
             //return;
 
-			int ret = xa_decode_sector(&cdr.Xa, cdr.Transfer+4, cdr.FirstSector);
+			int ret = xa_decode_sector(&cdr.Xa, cdr.Transfer[cdr.sectorBufWritePos]+4, cdr.FirstSector);
 			#ifdef SHOW_DEBUG
             sprintf(txtbuffer, "playADPCMchannel ret %d\n", ret);
             DEBUG_print(txtbuffer, DBG_CDR4);
@@ -1599,7 +1608,7 @@ void cdrReadInterrupt() {
     cdr.Readed = 0;
 
 
-	if ((cdr.Transfer[4+2] & 0x80) && (cdr.Mode & 0x2)) { // EOF
+	if ((cdr.Transfer[cdr.sectorBufWritePos][4+2] & 0x80) && (cdr.Mode & 0x2)) { // EOF
 #ifdef CDR_LOG
 		CDR_LOG("cdrReadInterrupt() Log: Autopausing read\n");
 #endif
@@ -1630,6 +1639,7 @@ void cdrReadInterrupt() {
 			}
         }
 	}
+	CHG_SECTOR_BUF_WRITE_POS();
 	psxHu32ref(0x1070)|= SWAP32((u32)0x4);
 	psxRegs.interrupt|= 0x80000000;
 }
@@ -2023,7 +2033,18 @@ void cdrWrite3(unsigned char rt) {
 
 	if ((rt & 0x80) && cdr.Readed == 0) {
 		cdr.Readed = 1;
-		cdr.pTransfer = cdr.Transfer;
+		cdr.pTransfer = cdr.Transfer[cdr.sectorBufReadPos];
+		cdr.pTransferStart = cdr.pTransfer;
+		if (cdr.sectorBufWritePos > 0)
+        {
+            cdr.sectorBufReadPos = cdr.sectorBufWritePos - 1;
+        }
+        else
+        {
+            cdr.sectorBufReadPos = 7;
+        }
+
+		//cdr.sectorBufReadPos = (cdr.sectorBufReadPos + 1) & 7;
 
 		switch (cdr.Mode & (MODE_SIZE_2340|MODE_SIZE_2328)) {
 			case MODE_SIZE_2328:
@@ -2086,7 +2107,7 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 			- CdlPlay
 			- Spams DMA3 and gets buffer overrun
 			*/
-			size = CD_FRAMESIZE_RAW - (cdr.pTransfer - cdr.Transfer);
+			size = CD_FRAMESIZE_RAW - (cdr.pTransfer - cdr.pTransferStart);
 			if (size > cdsize)
 				size = cdsize;
 			if (size > 0)
@@ -2098,7 +2119,7 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 			psxCpu->Clear(madr, cdsize >> 2);
 			cdr.pTransfer += cdsize;
 			#ifdef SHOW_DEBUG
-			if ((u32)(cdr.pTransfer) > ((u32)(cdr.Transfer) + DATA_SIZE)) {
+			if ((u32)(cdr.pTransfer) > ((u32)(cdr.pTransferStart) + DATA_SIZE)) {
                 sprintf(txtbuffer, "cdrDma3 pTransfer overFlow \n");
                 DEBUG_print(txtbuffer, DBG_CDR4);
                 writeLogFile(txtbuffer);
@@ -2157,7 +2178,11 @@ void cdrReset() {
 	cdr.Stat = NoIntr;
 	cdr.DriveState = DRIVESTATE_STANDBY;
 	cdr.StatP = STATUS_ROTATING;
-	cdr.pTransfer = cdr.Transfer;
+	cdr.pTransfer = cdr.Transfer[0];
+	cdr.pTransferStart = cdr.pTransfer;
+	memset(cdr.Transfer, 0, NUM_SECTOR_BUFFERS * DATA_SIZE);
+	cdr.sectorBufReadPos = 0;
+	cdr.sectorBufWritePos = 0;
 	cdr.SetlocPending = 0;
 	cdr.m_locationChanged = FALSE;
 
@@ -2174,9 +2199,9 @@ int cdrFreeze(gzFile f, int Mode) {
 
 	gzfreeze(&cdr, sizeof(cdr));
 
-	if (Mode == 1) tmp = cdr.pTransfer - cdr.Transfer;
+	if (Mode == 1) tmp = cdr.pTransfer - cdr.pTransferStart;
 	gzfreezel(&tmp);
-	if (Mode == 0) cdr.pTransfer = cdr.Transfer + tmp;
+	if (Mode == 0) cdr.pTransfer = cdr.pTransferStart + tmp;
 
 	return 0;
 }

@@ -609,7 +609,7 @@ void cdrPlayInterrupt()
 	if (cdr.Seeked == SEEK_PENDING) {
 		if (cdr.Stat) {
 			//CDR_LOG_I("cdrom: seek stat hack\n");
-			CDRMISC_INT(0x100);
+			CDRMISC_INT(0x1000);
 			return;
 		}
 		SetResultSize(1);
@@ -684,7 +684,7 @@ void cdrPlayInterrupt()
 	}
 	else
 	{
-		CDRMISC_INT(playAdpcmTime);
+		CDRMISC_INT(playAdpcmTime * 4);
 	}
 
 	// update for CdlGetlocP/autopause
@@ -862,7 +862,7 @@ void cdrInterrupt() {
 			// BIOS player - set flag again
 			cdr.Play = TRUE;
 
-			CDRMISC_INT( cdReadTime );
+			//CDRMISC_INT( cdReadTime );
 			break;
 
     	case CdlForward:
@@ -1323,11 +1323,11 @@ void cdrInterrupt() {
             writeLogFile(txtbuffer);
             #endif // DISP_DEBUG
 
-			/*if ((cdr.Mode & MODE_CDDA) && cdr.CurTrack > 1)
+			if ((cdr.Mode & MODE_CDDA) && cdr.CurTrack > 1)
 				// Read* acts as play for cdda tracks in cdda mode
 				goto do_CdlPlay;
 
-			cdr.Reading = 1;*/
+			cdr.Reading = 1;
 			cdr.FirstSector = 1;
 
 			// Fighting Force 2 - update subq time immediately

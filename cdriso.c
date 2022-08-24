@@ -1667,7 +1667,7 @@ static long CALLBACK ISOopen(void) {
 	fseek(cdHandle, 0, SEEK_SET);
 
 	//SysPrintf("%s.\n", image_str);
-	PRINT_LOG1("ISOopen: %s", image_str);
+	//PRINT_LOG1("ISOopen: %s", image_str);
 
 	//PrintTracks();
 
@@ -1700,7 +1700,9 @@ static long CALLBACK ISOclose(void) {
 		fclose(subHandle);
 		subHandle = NULL;
 	}
-	stopCDDA();
+	//stopCDDA();
+	playing = FALSE;
+	cddaHandle = NULL;
 
 	if (compr_img != NULL) {
 		free(compr_img->index_table);
@@ -1714,8 +1716,6 @@ static long CALLBACK ISOclose(void) {
 			ti[i].handle = NULL;
 		}
 	}
-	cddaHandle = NULL;
-
 	numtracks = 0;
 	ti[1].type = 0;
 	UnloadSBI();
@@ -1845,7 +1845,8 @@ static long CALLBACK ISOreadTrack(unsigned char *time) {
 // sector: byte 0 - minute; byte 1 - second; byte 2 - frame
 // does NOT uses bcd format
 static long CALLBACK ISOplay(unsigned char *time) {
-	unsigned int i;
+    playing = TRUE;
+	/*unsigned int i;
 	#ifdef DISP_DEBUG
 	sprintf(txtbuffer, "CDR_play time %d %d %d", time[0], time[1], time[2]);
     DEBUG_print(txtbuffer, DBG_CDR1);
@@ -1871,14 +1872,15 @@ static long CALLBACK ISOplay(unsigned char *time) {
 	cddaHandle = ti[i].handle;
 
 	if (SPU_playCDDAchannel != NULL)
-		startCDDA();
+		startCDDA();*/
 
 	return 0;
 }
 
 // stops cdda audio
 static long CALLBACK ISOstop(void) {
-	stopCDDA();
+	//stopCDDA();
+	playing = FALSE;
 	return 0;
 }
 

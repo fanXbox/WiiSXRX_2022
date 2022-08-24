@@ -84,7 +84,7 @@ char *CmdName[0x100]= {
     "CdlGetlocL",  "CdlGetlocP",   "CdlReadT",   "CdlGetTN",
     "CdlGetTD",    "CdlSeekL",     "CdlSeekP",   "CdlSetclock",
     "CdlGetclock", "CdlTest",      "CdlID",      "CdlReadS",
-    "CdlReset",    "CdlGetQ",      "CDlReadToc", NULL
+    "CdlReset",    "CdlGetQ",      "CdlReadToc", NULL
 };
 
 unsigned char Test04[] = { 0 };
@@ -679,12 +679,12 @@ void cdrPlayInterrupt()
 
 	if (cdr.m_locationChanged)
 	{
-		CDRMISC_INT(cdReadTime * 30);
+		CDRMISC_INT(playAdpcmTime * 30);
 		cdr.m_locationChanged = FALSE;
 	}
 	else
 	{
-		CDRMISC_INT(cdReadTime);
+		CDRMISC_INT(playAdpcmTime);
 	}
 
 	// update for CdlGetlocP/autopause
@@ -1265,7 +1265,7 @@ void cdrInterrupt() {
 			cdr.StatP |= STATUS_ROTATING;
         	cdr.Result[0] = cdr.StatP;
         	cdr.Stat = Acknowledge;
-			AddIrqQueue(CdlReadToc + 0x100, WaitTime1st);
+			AddIrqQueue(CdlReadToc + 0x100, WaitTime1stInit);
 			no_busy_error = 1;
 			start_rotating = 1;
 			break;

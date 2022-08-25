@@ -204,6 +204,10 @@ static void *playthread(void *param)
 		if (s == 0) {
 			playing = FALSE;
 			initial_offset = 0;
+			if (isEnd)
+            {
+                p_cdrPlayDataEnd();
+            }
 			break;
 		}
 

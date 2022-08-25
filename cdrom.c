@@ -544,12 +544,19 @@ void AddIrqQueue(unsigned short irq, unsigned long ecycle) {
 static void cdrPlayDataEnd()
 {
     #ifdef DISP_DEBUG
-	sprintf(txtbuffer, "cdrPlayDataEnd cdr.Mode & MODE_AUTOPAUSE %d\d", cdr.Mode & MODE_AUTOPAUSE);
+	sprintf(txtbuffer, "cdrPlayDataEnd cdr.Mode & MODE_AUTOPAUSE %d \n", cdr.Mode & MODE_AUTOPAUSE);
     DEBUG_print(txtbuffer, DBG_CDR1);
     #endif // DISP_DEBUG
-	if (cdr.Mode & MODE_AUTOPAUSE) {
+	//if (cdr.Mode & MODE_AUTOPAUSE)
+    {
 		cdr.Stat = DataEnd;
-		setIrq();
+        SetResultSize(1);
+		cdr.StatP |= STATUS_ROTATING;
+		cdr.StatP &= ~STATUS_SEEK;
+		cdr.Result[0] = cdr.StatP;
+		cdr.Seeked = SEEK_DONE;
+		psxHu32ref(0x1070) |= SWAP32((u32)0x4);
+		psxRegs.interrupt|= 0x80000000;
 
 		StopCdda();
 	}
@@ -1337,11 +1344,11 @@ void cdrInterrupt() {
             writeLogFile(txtbuffer);
             #endif // DISP_DEBUG
 
-			if ((cdr.Mode & MODE_CDDA) && cdr.CurTrack > 1)
+			/*if ((cdr.Mode & MODE_CDDA) && cdr.CurTrack > 1)
 				// Read* acts as play for cdda tracks in cdda mode
 				goto do_CdlPlay;
 
-			cdr.Reading = 1;
+			cdr.Reading = 1;*/
 			cdr.FirstSector = 1;
 
 			// Fighting Force 2 - update subq time immediately

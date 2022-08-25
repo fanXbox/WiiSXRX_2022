@@ -149,6 +149,7 @@ void cdrWrite3(unsigned char rt);
 int cdrFreeze(gzFile f, int Mode);
 
 bool swapIso;
+void (*p_cdrPlayDataEnd)();
 
 #ifdef __cplusplus
 }

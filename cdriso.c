@@ -174,6 +174,7 @@ static void *playthread(void *param)
 	long osleep, d, t, i, s;
 	unsigned char	tmp;
 	int ret = 0, sector_offs;
+	int isEnd = 0;
 
 	t = GetTickCount();
 
@@ -191,6 +192,7 @@ static void *playthread(void *param)
 				if (d < CD_FRAMESIZE_RAW)
                 {
                     s += d;
+                    isEnd = 1;
                     break;
                 }
 			}
@@ -252,6 +254,12 @@ static void *playthread(void *param)
 			t += CDDA_FRAMETIME;
 		}
 
+		if (isEnd)
+        {
+            playing = FALSE;
+            p_cdrPlayDataEnd();
+            break;
+        }
 	}
 
 	//pthread_exit(0);  // TODO

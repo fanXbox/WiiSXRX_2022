@@ -541,6 +541,16 @@ void AddIrqQueue(unsigned short irq, unsigned long ecycle) {
 	CDR_INT(ecycle);
 }
 
+static void cdrPlayDataEnd()
+{
+	if (cdr.Mode & MODE_AUTOPAUSE) {
+		cdr.Stat = DataEnd;
+		setIrq();
+
+		StopCdda();
+	}
+}
+
 static void cdrPlayInterrupt_Autopause()
 {
 	u32 abs_lev_max = 0;
@@ -2167,6 +2177,8 @@ void cdrReset() {
 	cdr.AttenuatorRightToLeft = 0x00;
 	cdr.AttenuatorRightToRight = 0x80;
 	getCdInfo();
+
+	p_cdrPlayDataEnd = cdrPlayDataEnd;
 }
 
 int cdrFreeze(gzFile f, int Mode) {

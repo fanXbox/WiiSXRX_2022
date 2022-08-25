@@ -1543,6 +1543,7 @@ void cdrReadInterrupt() {
 	}
 
 	cacheable_kernel_memcpy(cdr.Transfer[cdr.sectorBufWritePos], buf, DATA_SIZE);
+	memcpy(cdr.lastSectorHeader, buf, 8);
     cdr.Stat = DataReady;
 
 #ifdef CDR_LOG
@@ -2180,7 +2181,11 @@ void cdrReset() {
 	cdr.StatP = STATUS_ROTATING;
 	cdr.pTransfer = cdr.Transfer[0];
 	cdr.pTransferStart = cdr.pTransfer;
-	memset(cdr.Transfer, 0, NUM_SECTOR_BUFFERS * DATA_SIZE);
+	int i = 0;
+	for (i; i < NUM_SECTOR_BUFFERS; i++)
+    {
+        memset(cdr.Transfer[i], 0, DATA_SIZE);
+    }
 	cdr.sectorBufReadPos = 0;
 	cdr.sectorBufWritePos = 0;
 	cdr.SetlocPending = 0;

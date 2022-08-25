@@ -543,6 +543,10 @@ void AddIrqQueue(unsigned short irq, unsigned long ecycle) {
 
 static void cdrPlayDataEnd()
 {
+    #ifdef DISP_DEBUG
+	sprintf(txtbuffer, "cdrPlayDataEnd cdr.Mode & MODE_AUTOPAUSE %d\d", cdr.Mode & MODE_AUTOPAUSE);
+    DEBUG_print(txtbuffer, DBG_CDR1);
+    #endif // DISP_DEBUG
 	if (cdr.Mode & MODE_AUTOPAUSE) {
 		cdr.Stat = DataEnd;
 		setIrq();

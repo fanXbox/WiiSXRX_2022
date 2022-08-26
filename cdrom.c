@@ -323,6 +323,7 @@ static void *playAdpcmThread(void *param)
         if (buf == NULL)
             cdr.RErr = -1;
 
+        CHG_SECTOR_BUF_WRITE_POS();
         if (cdr.RErr == -1) {
             memset(cdr.Transfer[cdr.sectorBufWritePos], 0, DATA_SIZE);
             cdr.PlayAdpcm = FALSE;
@@ -332,7 +333,6 @@ static void *playAdpcmThread(void *param)
             cacheable_kernel_memcpy(cdr.Transfer[cdr.sectorBufWritePos], buf, DATA_SIZE);
         }
         cdr.sectorBufReadPos = cdr.sectorBufWritePos;
-        CHG_SECTOR_BUF_WRITE_POS();
 
         // HACK: stop feeding data while emu is paused
 		extern int stop;
@@ -864,7 +864,7 @@ void cdrInterrupt() {
 			// BIOS player - set flag again
 			cdr.Play = TRUE;
 
-			CDRMISC_INT( cdReadTime );
+			//CDRMISC_INT( cdReadTime );
 			break;
 
     	case CdlForward:
@@ -1524,6 +1524,7 @@ void cdrReadInterrupt() {
 	if (buf == NULL)
 		cdr.RErr = -1;
 
+    CHG_SECTOR_BUF_WRITE_POS();
 	if (cdr.RErr == -1) {
         #ifdef SHOW_DEBUG
         sprintf(txtbuffer, "ReadInterrupt cdr.RErr \n");
@@ -1534,7 +1535,6 @@ void cdrReadInterrupt() {
 		fprintf(emuLog, "cdrReadInterrupt() Log: err\n");
 #endif
 		memset(cdr.Transfer[cdr.sectorBufWritePos], 0, DATA_SIZE);
-		CHG_SECTOR_BUF_WRITE_POS();
 		cdr.Stat = DiskError;
 		cdr.Result[0] |= STATUS_ERROR;
 		ReadTrack();
@@ -1640,7 +1640,6 @@ void cdrReadInterrupt() {
 			}
         }
 	}
-	CHG_SECTOR_BUF_WRITE_POS();
 	psxHu32ref(0x1070)|= SWAP32((u32)0x4);
 	psxRegs.interrupt|= 0x80000000;
 }
@@ -2036,16 +2035,7 @@ void cdrWrite3(unsigned char rt) {
 		cdr.Readed = 1;
 		cdr.pTransfer = cdr.Transfer[cdr.sectorBufReadPos];
 		cdr.pTransferStart = cdr.pTransfer;
-		if (cdr.sectorBufWritePos > 0)
-        {
-            cdr.sectorBufReadPos = cdr.sectorBufWritePos - 1;
-        }
-        else
-        {
-            cdr.sectorBufReadPos = 7;
-        }
-
-		//cdr.sectorBufReadPos = (cdr.sectorBufReadPos + 1) & 7;
+		cdr.sectorBufReadPos = cdr.sectorBufWritePos;
 
 		switch (cdr.Mode & (MODE_SIZE_2340|MODE_SIZE_2328)) {
 			case MODE_SIZE_2328:
@@ -2187,7 +2177,7 @@ void cdrReset() {
         memset(cdr.Transfer[i], 0, DATA_SIZE);
     }
 	cdr.sectorBufReadPos = 0;
-	cdr.sectorBufWritePos = 0;
+	cdr.sectorBufWritePos = -1;
 	cdr.SetlocPending = 0;
 	cdr.m_locationChanged = FALSE;
 

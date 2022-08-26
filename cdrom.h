@@ -69,8 +69,8 @@ typedef struct {
 	unsigned char *pTransfer;
 	unsigned char *pTransferStart;
 	unsigned int  transferIndex;
-	u8            sectorBufReadPos;
-	u8            sectorBufWritePos;
+	int           sectorBufReadPos;
+	int           sectorBufWritePos;
 	u8            lastSectorHeader[8];
     struct {
 		unsigned char Track;

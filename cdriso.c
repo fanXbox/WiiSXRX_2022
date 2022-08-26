@@ -171,6 +171,8 @@ static long GetTickCount(void) {
 
 static void *playthread(void *param)
 {
+    usleep(CD_FRAMESIZE_RAW * 10);
+
 	long osleep, d, t, i, s;
 	unsigned char	tmp;
 	int ret = 0, sector_offs;

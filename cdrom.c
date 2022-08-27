@@ -2008,11 +2008,11 @@ void cdrWrite3(unsigned char rt) {
 #ifdef CDR_LOG
 	CDR_LOG("cdrWrite3() Log: CD3 write: %x\n", rt);
 #endif
-    #ifdef SHOW_DEBUG
-    sprintf(txtbuffer, "cdrWrite3 rt %02x cdr.Ctrl %02x \n", rt, cdr.Ctrl);
-    DEBUG_print(txtbuffer, DBG_CDR3);
-    writeLogFile(txtbuffer);
-    #endif // DISP_DEBUG
+    //#ifdef SHOW_DEBUG
+    //sprintf(txtbuffer, "cdrWrite3 rt %02x cdr.Ctrl %02x \n", rt, cdr.Ctrl);
+    //DEBUG_print(txtbuffer, DBG_CDR3);
+    //writeLogFile(txtbuffer);
+    //#endif // DISP_DEBUG
     if (rt == 0x07 && cdr.Ctrl & 0x1) {
         cdr.Stat = 0;
 		//cdr.Stat &= ~rt;
@@ -2032,10 +2032,15 @@ void cdrWrite3(unsigned char rt) {
 	}
 
 	if ((rt & 0x80) && cdr.Readed == 0) {
+        #ifdef SHOW_DEBUG
+        sprintf(txtbuffer, "cdrWrite3 rt %02x cdr.Ctrl %02x \n", rt, cdr.Ctrl);
+        DEBUG_print(txtbuffer, DBG_CDR3);
+        writeLogFile(txtbuffer);
+        #endif // DISP_DEBUG
 		cdr.Readed = 1;
 		cdr.pTransfer = cdr.Transfer[cdr.sectorBufReadPos];
 		cdr.pTransferStart = cdr.pTransfer;
-		cdr.sectorBufReadPos = cdr.sectorBufWritePos;
+		cdr.sectorBufReadPos = (cdr.sectorBufWritePos + 1) & 0x7;
 
 		switch (cdr.Mode & (MODE_SIZE_2340|MODE_SIZE_2328)) {
 			case MODE_SIZE_2328:
@@ -2057,11 +2062,6 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 	switch (chcr) {
 		case 0x11000000:
 		case 0x11400100:
-//		    #ifdef SHOW_DEBUG
-//            sprintf(txtbuffer, "cdrDma3 cdr.Readed %d\n", cdr.Readed);
-//            DEBUG_print(txtbuffer, DBG_CDR4);
-//            writeLogFile(txtbuffer);
-//            #endif // DISP_DEBUG
 			if (cdr.Readed == 0) {
 #ifdef CDR_LOG
 				CDR_LOG("psxDma3() Log: *** DMA 3 *** NOT READY\n");
@@ -2070,6 +2070,11 @@ void psxDma3(u32 madr, u32 bcr, u32 chcr) {
 			}
 
 			cdsize = (bcr & 0xffff) << 2;
+			#ifdef SHOW_DEBUG
+            sprintf(txtbuffer, "cdrDma3 cdr.Readed %d cdsize %d pos %d \n", cdr.Readed, cdsize, cdr.pTransfer - cdr.pTransferStart);
+            DEBUG_print(txtbuffer, DBG_CDR4);
+            writeLogFile(txtbuffer);
+            #endif // DISP_DEBUG
 
 			// Ape Escape: bcr = 0001 / 0000
 			// - fix boot

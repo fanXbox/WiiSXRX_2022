@@ -266,7 +266,7 @@ static void *playthread(void *param)
             playing = FALSE;
         }
 
-        p_cdrPlayCddaData(timePlus, isEnd);
+        //p_cdrPlayCddaData(timePlus, isEnd);
 
 	}
 

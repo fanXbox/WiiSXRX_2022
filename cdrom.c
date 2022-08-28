@@ -647,9 +647,9 @@ void cdrPlayInterrupt()
 		StopCdda();
 		cdr.TrackChanged = TRUE;
 	}
-	else {
-		CDR_readCDDA(cdr.SetSectorPlay[0], cdr.SetSectorPlay[1], cdr.SetSectorPlay[2], (u8 *)read_buf);
-	}
+	//else {
+	//	CDR_readCDDA(cdr.SetSectorPlay[0], cdr.SetSectorPlay[1], cdr.SetSectorPlay[2], (u8 *)read_buf);
+	//}
 
 	if (!cdr.Irq && !cdr.Stat && (cdr.Mode & (MODE_AUTOPAUSE|MODE_REPORT)))
 		cdrPlayInterrupt_Autopause();
@@ -658,7 +658,7 @@ void cdrPlayInterrupt()
 	//#ifdef DISP_DEBUG
     //PRINT_LOG2("Bef CDR_readCDDA==Muted Mode %d %d", cdr.Muted, cdr.Mode);
     //#endif // DISP_DEBUG
-	if (CDR_readCDDA && !cdr.Muted && !Config.Cdda) {
+	/*if (CDR_readCDDA && !cdr.Muted && !Config.Cdda) {
 	//if (CDR_readCDDA && !cdr.Muted) {
         #ifdef SHOW_DEBUG
         sprintf(txtbuffer, "CDR_readCDDA time %d %d %d", cdr.SetSectorPlay[0], cdr.SetSectorPlay[1], cdr.SetSectorPlay[2]);
@@ -673,7 +673,7 @@ void cdrPlayInterrupt()
 		cdrAttenuate(read_buf, CD_FRAMESIZE_RAW / 4, 1);
 		if (SPU_playCDDAchannel)
 			SPU_playCDDAchannel(read_buf, CD_FRAMESIZE_RAW);
-	}
+	}*/
 
 	cdr.SetSectorPlay[2]++;
 	if (cdr.SetSectorPlay[2] == 75) {
@@ -858,7 +858,7 @@ void cdrInterrupt() {
 			// BIOS player - set flag again
 			cdr.Play = TRUE;
 
-			//CDRMISC_INT( cdReadTime );
+			CDRMISC_INT( cdReadTime );
 			start_rotating = 1;
 			break;
 
@@ -1004,6 +1004,8 @@ void cdrInterrupt() {
 		case CdlGetlocP:
 			SetResultSize(8);
 			memcpy(&cdr.Result, &cdr.subq, 8);
+			if (!cdr.Play && !cdr.Reading)
+				cdr.Result[1] = 0; // HACK?
 			break;
 
 		case CdlReadT: // SetSession?
@@ -1111,7 +1113,12 @@ void cdrInterrupt() {
 			cdr.Result[0] |= (cdr.Result[1] >> 4) & 0x08;
 
 			/* This adds the string "PCSX" in Playstation bios boot screen */
-			memcpy((char *)&cdr.Result[4], "PCSX", 4);
+			//memcpy((char *)&cdr.Result[4], "PCSX", 4);
+#ifdef HW_RVL
+			strncpy((char *)&cdr.Result[4], "WSX ", 4);
+#else
+			strncpy((char *)&cdr.Result[4], "GCSX", 4);
+#endif
 			cdr.Stat = Complete;
 			break;
 
@@ -1327,10 +1334,10 @@ void cdrReadInterrupt() {
     #endif // DISP_DEBUG
 	if (cdr.Irq || cdr.Stat) {
 		CDR_LOG_I("cdrom: read stat hack %02x %x\n", cdr.Irq, cdr.Stat);
-		CDREAD_INT(WaitTime1st);
+		CDREAD_INT(0x100);
 		return;
 	}
-	
+
 	if ((psxHu32ref(0x1070) & psxHu32ref(0x1074) & SWAP32((u32)0x4)) && !cdr.ReadRescheduled) {
 		// HACK: with BIAS 2, emulated CPU is often slower than real thing,
 		// game may be unfinished with prev data read, so reschedule

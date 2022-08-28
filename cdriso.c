@@ -171,14 +171,18 @@ static long GetTickCount(void) {
 
 static void *playthread(void *param)
 {
+    usleep(CD_FRAMESIZE_RAW * 10);
+
 	long osleep, d, t, i, s;
 	unsigned char	tmp;
-	int ret = 0, sector_offs;
+	int ret = 0, sector_offs, timePlus;
+	int isEnd = 0;
 
 	t = GetTickCount();
 
 	while (playing) {
 		s = 0;
+		timePlus = 0;
 		for (i = 0; i < sizeof(sndbuffer) / CD_FRAMESIZE_RAW; i++) {
 			sector_offs = cdda_cur_sector - cdda_first_sector;
 			if (sector_offs <= 0) {
@@ -191,7 +195,12 @@ static void *playthread(void *param)
 				if (d < CD_FRAMESIZE_RAW)
                 {
                     s += d;
+                    isEnd = 1;
                     break;
+                }
+                else
+                {
+                    timePlus++;
                 }
 			}
 
@@ -251,6 +260,13 @@ static void *playthread(void *param)
 			usleep(osleep * 1000);
 			t += CDDA_FRAMETIME;
 		}
+
+		if (isEnd)
+        {
+            playing = FALSE;
+        }
+
+        p_cdrPlayCddaData(timePlus, isEnd);
 
 	}
 
@@ -1673,7 +1689,7 @@ static long CALLBACK ISOopen(void) {
 	fseek(cdHandle, 0, SEEK_SET);
 
 	//SysPrintf("%s.\n", image_str);
-	PRINT_LOG1("ISOopen: %s", image_str);
+	//PRINT_LOG1("ISOopen: %s", image_str);
 
 	//PrintTracks();
 
@@ -1707,6 +1723,8 @@ static long CALLBACK ISOclose(void) {
 		subHandle = NULL;
 	}
 	stopCDDA();
+	//playing = FALSE;
+	cddaHandle = NULL;
 
 	if (compr_img != NULL) {
 		free(compr_img->index_table);
@@ -1850,6 +1868,7 @@ static long CALLBACK ISOreadTrack(unsigned char *time) {
 // sector: byte 0 - minute; byte 1 - second; byte 2 - frame
 // does NOT uses bcd format
 static long CALLBACK ISOplay(unsigned char *time) {
+    //playing = TRUE;
 	unsigned int i;
 	#ifdef DISP_DEBUG
 	sprintf(txtbuffer, "CDR_play time %d %d %d", time[0], time[1], time[2]);
@@ -1884,6 +1903,7 @@ static long CALLBACK ISOplay(unsigned char *time) {
 // stops cdda audio
 static long CALLBACK ISOstop(void) {
 	stopCDDA();
+	//playing = FALSE;
 	return 0;
 }
 

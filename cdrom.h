@@ -86,7 +86,7 @@ typedef struct {
 	unsigned char SetSectorEnd[4];
 	unsigned char SetSector[4];
 	unsigned char Track;
-	bool Play, Muted;
+	bool Play, Muted, PlayAdpcm;
 	int CurTrack;
 	int Mode, File, Channel;
 	int Reset;
@@ -141,6 +141,8 @@ void cdrWrite3(unsigned char rt);
 int cdrFreeze(gzFile f, int Mode);
 
 bool swapIso;
+void (*p_cdrPlayDataEnd)();
+void (*p_cdrPlayCddaData)(int timePlus, int isEnd);
 
 #ifdef __cplusplus
 }

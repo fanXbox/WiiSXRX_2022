@@ -133,7 +133,6 @@
 //#define SMALLDEBUG
 //#include <dbgout.h>
 
-
 ////////////////////////////////////////////////////////////////////////
 // PPDK developer must change libraryName field and can change revision and build
 ////////////////////////////////////////////////////////////////////////
@@ -530,7 +529,7 @@ long PEOPS_GPUshutdown()
 // Update display (swap buffers)
 ////////////////////////////////////////////////////////////////////////
 
-void updateDisplay(void)                               // UPDATE DISPLAY
+static void updateDisplay(void)                               // UPDATE DISPLAY
 {
  if(PSXDisplay.Disabled)                               // disable?
   {
@@ -699,7 +698,7 @@ void ChangeDispOffsetsY(void)                          // Y CENTER
 // check if update needed
 ////////////////////////////////////////////////////////////////////////
 
-void updateDisplayIfChanged(void)                      // UPDATE DISPLAY IF CHANGED
+static void updateDisplayIfChanged(void)                      // UPDATE DISPLAY IF CHANGED
 {
  if ((PSXDisplay.DisplayMode.y == PSXDisplay.DisplayModeNew.y) &&
      (PSXDisplay.DisplayMode.x == PSXDisplay.DisplayModeNew.x))
@@ -1200,12 +1199,18 @@ unsigned long PEOPS_GPUreadData(void)
  return lGPUdataRet;
 }
 
+// Software drawing function
+#include "soft.c"
+
+// PSX drawing primitives
+#include "prim.c"
+
 ////////////////////////////////////////////////////////////////////////
 // processes data send to GPU data register
 // extra table entries for fixing polyline troubles
 ////////////////////////////////////////////////////////////////////////
 
-const unsigned char primTableCX[256] =
+static const unsigned char primTableCX[256] =
 {
     // 00
     0,0,3,0,0,0,0,0,

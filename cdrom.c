@@ -717,12 +717,12 @@ void cdrPlayInterrupt()
 
 	if (cdr.m_locationChanged)
 	{
-		CDRMISC_INT(cdReadTime * 30);
+		CDRMISC_INT(cdReadTime * 30 / 2);
 		cdr.m_locationChanged = FALSE;
 	}
 	else
 	{
-		CDRMISC_INT(cdReadTime);
+		CDRMISC_INT(cdReadTime / 2);
 	}
 
 	// update for CdlGetlocP/autopause

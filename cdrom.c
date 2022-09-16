@@ -684,7 +684,7 @@ void cdrPlayInterrupt()
 	if (!cdr.Irq && !cdr.Stat && (cdr.Mode & (MODE_AUTOPAUSE|MODE_REPORT)))
 		cdrPlayInterrupt_Autopause(read_buf);
 
-	//if (!cdr.Play) return;
+	if (!cdr.Play) return;
 	//#ifdef DISP_DEBUG
     //PRINT_LOG2("Bef CDR_readCDDA==Muted Mode %d %d", cdr.Muted, cdr.Mode);
     //#endif // DISP_DEBUG

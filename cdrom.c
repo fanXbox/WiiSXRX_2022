@@ -180,7 +180,8 @@ int msf2SectS[] = {
 // 1x = 75 sectors per second
 // PSXCLK = 1 sec in the ps
 // so (PSXCLK / 75) = cdr read time (linuzappz)
-#define cdReadTime         (PSXCLK / 75) / 2  // OK
+//#define cdReadTime         (PSXCLK / 75) / 2  // OK
+#define cdReadTime         (PSXCLK / 75)  // OK
 //#define playAdpcmTime      178560  // =(PSXCLK * 930 / 4 / 44100) / 2  // OK
 #define playAdpcmTime      (PSXCLK * 930 / 4 / 44100) / 2  // OK
 #define WaitTime1st        (0x800)

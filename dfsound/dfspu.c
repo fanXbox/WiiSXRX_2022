@@ -1102,7 +1102,6 @@ int do_samples(unsigned int cycles_to, int do_direct)
  int cycle_diff;
  int ns_to;
 
- //cycles_to = cycles_to << 1;
  cycle_diff = cycles_to - spu.cycles_played;
  if (cycle_diff < -2*1048576 || cycle_diff > 2*1048576)
   {
@@ -1119,7 +1118,6 @@ int do_samples(unsigned int cycles_to, int do_direct)
 
  if (cycle_diff < 2 * 768)
  {
-     spu.cycles_played = cycles_to;
      return 0;
  }
 
@@ -1257,7 +1255,53 @@ void schedule_next_irq(void)
  }
 
  if (upd_samples < SPU_FREQ / 50)
-  spu.scheduleCallback(upd_samples * 768 / 2);
+  spu.scheduleCallback(upd_samples * 76);
+}
+
+#include <ogc/lwp.h>
+#include <ogc/mutex.h>
+
+static lwp_t spuThreadId = LWP_THREAD_NULL;
+static lwpq_t spuQueue = LWP_TQUEUE_NULL;
+static bool stopAudio = false;
+static unsigned int spuAsyncParam[3];
+
+static void *spuMainThread(void *param)
+{
+    while (1)
+    {
+        if (stopAudio)
+        {
+            break;
+        }
+
+        int lastBytes;
+        int nsTo = do_samples(spuAsyncParam[0], spu_config.iUseFixedUpdates);
+
+        if (spu.spuCtrl & CTRL_IRQ)
+        {
+            schedule_next_irq();
+        }
+
+        if (spuAsyncParam[1] & 1)
+        {
+            lastBytes = out_current->feed(spu.pSpuBuffer, (unsigned char *)spu.pS - spu.pSpuBuffer);
+            spu.pS = (short *)spu.pSpuBuffer + (lastBytes >> 1);
+
+            if (!out_current->busy() && nsTo > 0)
+            {
+                // cause more samples to be generated
+                // (and break some games because of bad sync)
+                if (spuAsyncParam[2]) {
+                    spu.cycles_played -= SPU_FREQ / 50 / 2 * 768;  // Config.PsxType = 1, PAL 50Fps/1s
+                } else {
+                    spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, PAL 60Fps/1s
+                }
+            }
+        }
+
+        LWP_ThreadSleep(spuQueue);
+    }
 }
 
 // SPU ASYNC... even newer epsxe func
@@ -1267,28 +1311,42 @@ void schedule_next_irq(void)
 
 void CALLBACK DF_SPUasync(unsigned int cycle, unsigned int flags, unsigned int psxType)
 {
-    int lastBytes;
-    int nsTo = do_samples(cycle, spu_config.iUseFixedUpdates);
+    spuAsyncParam[0] = cycle;
+    spuAsyncParam[1] = flags;
+    spuAsyncParam[2] = psxType;
 
- //if (spu.spuCtrl & CTRL_IRQ)
-  //schedule_next_irq();
-
- if (flags & 1) {
-  lastBytes = out_current->feed(spu.pSpuBuffer, (unsigned char *)spu.pS - spu.pSpuBuffer);
-  //spu.pSpuBuffer = spu.spuBuffer[spu.whichBuffer = ((spu.whichBuffer + 1) & 3)];
-  spu.pS = (short *)spu.pSpuBuffer + lastBytes;
-
-  //if (spu_config.iTempo) {
-   if (!out_current->busy() && nsTo > 0) {
-    // cause more samples to be generated
-    // (and break some games because of bad sync)
-    if (psxType) {
-        spu.cycles_played -= SPU_FREQ / 50 / 2 * 768;  // Config.PsxType = 1, PAL 50Fps/1s
-    } else {
-        spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, PAL 60Fps/1s
+    if (spuThreadId == LWP_THREAD_NULL)
+    {
+        stopAudio = false;
+        LWP_InitQueue(&spuQueue);
+        LWP_CreateThread(&spuThreadId, spuMainThread, NULL, NULL, 0, 85);
     }
-   }
- }
+    else
+    {
+        LWP_ThreadSignal(spuQueue);
+    }
+//    int lastBytes;
+//    int nsTo = do_samples(cycle, spu_config.iUseFixedUpdates);
+//
+// if (spu.spuCtrl & CTRL_IRQ)
+//  schedule_next_irq();
+//
+// if (flags & 1) {
+//  lastBytes = out_current->feed(spu.pSpuBuffer, (unsigned char *)spu.pS - spu.pSpuBuffer);
+//  //spu.pSpuBuffer = spu.spuBuffer[spu.whichBuffer = ((spu.whichBuffer + 1) & 3)];
+//  spu.pS = (short *)spu.pSpuBuffer + (lastBytes >> 1);
+//
+//  //if (spu_config.iTempo) {
+//   if (!out_current->busy() && nsTo > 0) {
+//    // cause more samples to be generated
+//    // (and break some games because of bad sync)
+//    if (psxType) {
+//        spu.cycles_played -= SPU_FREQ / 50 / 2 * 768;  // Config.PsxType = 1, PAL 50Fps/1s
+//    } else {
+//        spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, PAL 60Fps/1s
+//    }
+//   }
+// }
 }
 
 // SPU UPDATE... new epsxe func
@@ -1579,6 +1637,12 @@ extern char shutdown;
 // SPUCLOSE: called before shutdown
 long DF_SPUclose(void)
 {
+    stopAudio = true;
+    if (spuQueue != LWP_TQUEUE_NULL)
+    {
+        LWP_ThreadSignal(spuQueue);
+    }
+
  if (!spu.bSPUIsOpen) return 0;                        // some security
 
  spu.bSPUIsOpen = 0;                                   // no more open
@@ -1611,7 +1675,16 @@ long DF_SPUclose(void)
         RemoveStreams();
 
         spu.bSpuInit=0;
+
                                         // no more streaming
+
+    if (spuThreadId != LWP_THREAD_NULL)
+    {
+        LWP_JoinThread(spuThreadId, NULL);
+        LWP_CloseQueue(spuQueue);
+        spuThreadId = LWP_THREAD_NULL;
+    }
+
  return 0;
 }
 

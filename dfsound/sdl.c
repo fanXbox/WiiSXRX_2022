@@ -52,10 +52,10 @@ static void SOUND_FillAudio(void *unused, Uint8 *stream, int len) {
     }
     #endif // DISP_DEBUG
 	// Fill remaining space with zero
-	while (len > 0) {
-		*p++ = 0;
-		--len;
-	}
+//	while (len > 0) {
+//		*p++ = 0;
+//		--len;
+//	}
 	/*int minLen = buffers[play_buffer].len;
 	if (len < minLen)
     {
@@ -140,10 +140,10 @@ static int sdl_busy(void) {
 	if (size <= 0) size += BUFFER_SIZE;
 
 	if (size < BUFFER_SIZE / 2) {
-        #ifdef SHOW_DEBUG
+        //#ifdef SHOW_DEBUG
         //sprintf(txtbuffer, "sdl_busy size = %d\n", size);
         //DEBUG_print(txtbuffer, DBG_SPU1);
-        #endif // DISP_DEBUG
+        //#endif // DISP_DEBUG
         return 1;
 	}
 

@@ -833,7 +833,8 @@ void cdrInterrupt() {
 			cdr.FastForward = 0;
 
 			if (cdr.SetlocPending) {
-				memcpy(cdr.SetSectorPlay, cdr.SetSector, 4);
+				//memcpy(cdr.SetSectorPlay, cdr.SetSector, 4);
+				*((u32*)cdr.SetSectorPlay) = *((u32*)cdr.SetSector);
 				cdr.SetlocPending = 0;
 				cdr.m_locationChanged = TRUE;
 			}
@@ -1101,7 +1102,7 @@ void cdrInterrupt() {
             DEBUG_print(txtbuffer, DBG_PROFILE_IDLE);
             writeLogFile(txtbuffer);
             #endif // DISP_DEBUG
-			CDRMISC_INT(cdr.Seeked == SEEK_DONE ? 0x800 : cdReadTime * 4);
+			CDRMISC_INT(cdr.Seeked == SEEK_DONE ? 0x800 : cdReadTime);
 			cdr.Seeked = SEEK_PENDING;
 			start_rotating = 1;
 			break;
@@ -1201,7 +1202,8 @@ void cdrInterrupt() {
 				* However, 1000000 is not enough for Worms Pinball to reliably boot.
 				*/
 				if(seekTime > 3386880 * 2) seekTime = 3386880 * 2;
-				memcpy(cdr.SetSectorPlay, cdr.SetSector, 4);
+				//memcpy(cdr.SetSectorPlay, cdr.SetSector, 4);
+				*((u32*)cdr.SetSectorPlay) = *((u32*)cdr.SetSector);
 				cdr.SetlocPending = 0;
 				cdr.m_locationChanged = TRUE;
 			}
@@ -1257,7 +1259,7 @@ void cdrInterrupt() {
 			*/
 			cdr.StatP |= STATUS_READ;
 			cdr.StatP &= ~STATUS_SEEK;
-			CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2) + seekTime);
+			CDREAD_INT(((cdr.Mode & 0x80) ? (WaitTime1stRead) : WaitTime1stRead * 2) + (seekTime >> 2));
 
 			cdr.Result[0] = cdr.StatP;
 			start_rotating = 1;

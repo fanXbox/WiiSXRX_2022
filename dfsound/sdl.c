@@ -162,50 +162,38 @@ static int sdl_feed(void *pSound, int lBytes) {
 	if (pSndBuffer == NULL) return;
 
 	while (lBytes > 0) {
-//		if (((iWritePos + 1) % BUFFER_SIZE) == iReadPos)
-//		{
-//		    #ifdef DISP_DEBUG
-//            PRINT_LOG1("sdl_feed === error: %d ", lBytes);
-//            #endif // DISP_DEBUG
-//		    break;
-//		}
-
-        ++iWritePos;
-        if (iWritePos >= BUFFER_SIZE) iWritePos = 0;
-
-        if (iWritePos == iReadPos)
-        {
-            #ifdef SHOW_DEBUG
-            DEBUG_print("sdl_feed === error", DBG_SPU1);
+		if (((iWritePos + 1) % BUFFER_SIZE) == iReadPos)
+		{
+		    #ifdef DISP_DEBUG
+            PRINT_LOG1("sdl_feed === error: %d ", lBytes);
             #endif // DISP_DEBUG
-            iWritePos--;
-            if (iWritePos < 0)
-            {
-                iWritePos = BUFFER_SIZE - 1;
-            }
-            break;
-        }
+		    break;
+		}
+
+//        ++iWritePos;
+//        if (iWritePos >= BUFFER_SIZE) iWritePos = 0;
+//
+//        if (iWritePos == iReadPos)
+//        {
+//            #ifdef SHOW_DEBUG
+//            DEBUG_print("sdl_feed === error", DBG_SPU1);
+//            #endif // DISP_DEBUG
+//            iWritePos--;
+//            if (iWritePos < 0)
+//            {
+//                iWritePos = BUFFER_SIZE - 1;
+//            }
+//            break;
+//        }
 
 		pSndBuffer[iWritePos] = *p++;
-		//++iWritePos;
-		//if (iWritePos >= BUFFER_SIZE) iWritePos = 0;
+		++iWritePos;
+		if (iWritePos >= BUFFER_SIZE) iWritePos = 0;
 
 		lBytes -= sizeof(short);
 	}
 
 	return lBytes;
-
-	//if(!audioEnabled) return;
-
-	/*buffers[fill_buffer].buffer = pSound;
-	buffers[fill_buffer].len = lBytes;
-
-	fill_buffer = (fill_buffer + 1) & 3;
-	usedBuf++;
-	if (usedBuf > NUM_BUFFERS)
-    {
-        usedBuf = NUM_BUFFERS;
-    }*/
 }
 
 void out_register_sdl(struct out_driver *drv)

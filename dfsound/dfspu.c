@@ -1223,6 +1223,8 @@ static void do_samples_finish(int *SSumLR, int ns_to,
    }
 }
 
+static unsigned int spuAsyncParam[3];
+
 void schedule_next_irq(void)
 {
  unsigned int upd_samples;
@@ -1231,7 +1233,12 @@ void schedule_next_irq(void)
  if (spu.scheduleCallback == NULL)
   return;
 
- upd_samples = SPU_FREQ / 50;
+ int maxSample = SPU_FREQ / 50; // Config.PsxType = 1, PAL 50Fps/1s
+ if (!spuAsyncParam[2])
+ {
+     maxSample = SPU_FREQ / 60; // Config.PsxType = 0, NTSC 60Fps/1s
+ }
+ upd_samples = maxSample;
 
  for (ch = 0; ch < MAXCHAN; ch++)
  {
@@ -1254,7 +1261,7 @@ void schedule_next_irq(void)
   }
  }
 
- if (upd_samples < SPU_FREQ / 50)
+ if (upd_samples < maxSample)
   spu.scheduleCallback(upd_samples * 76);
 }
 
@@ -1264,7 +1271,6 @@ void schedule_next_irq(void)
 static lwp_t spuThreadId = LWP_THREAD_NULL;
 static lwpq_t spuQueue = LWP_TQUEUE_NULL;
 static bool stopAudio = false;
-static unsigned int spuAsyncParam[3];
 
 static void *spuMainThread(void *param)
 {
@@ -1343,7 +1349,7 @@ void CALLBACK DF_SPUasync(unsigned int cycle, unsigned int flags, unsigned int p
     if (psxType) {
         spu.cycles_played -= SPU_FREQ / 50 / 2 * 768;  // Config.PsxType = 1, PAL 50Fps/1s
     } else {
-        spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, PAL 60Fps/1s
+        spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, NTSC 60Fps/1s
     }
    }
  }

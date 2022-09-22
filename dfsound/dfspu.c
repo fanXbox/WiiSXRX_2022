@@ -1262,7 +1262,7 @@ void schedule_next_irq(void)
  }
 
  if (upd_samples < maxSample)
-  spu.scheduleCallback(upd_samples * 76);
+  spu.scheduleCallback(upd_samples * 768);
 }
 
 #include <ogc/lwp.h>

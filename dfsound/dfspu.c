@@ -1315,38 +1315,38 @@ void CALLBACK DF_SPUasync(unsigned int cycle, unsigned int flags, unsigned int p
     spuAsyncParam[1] = flags;
     spuAsyncParam[2] = psxType;
 
-    if (spuThreadId == LWP_THREAD_NULL)
-    {
-        stopAudio = false;
-        LWP_InitQueue(&spuQueue);
-        LWP_CreateThread(&spuThreadId, spuMainThread, NULL, NULL, 0, 85);
-    }
-    else
-    {
-        LWP_ThreadSignal(spuQueue);
-    }
-//    int lastBytes;
-//    int nsTo = do_samples(cycle, spu_config.iUseFixedUpdates);
-//
-// if (spu.spuCtrl & CTRL_IRQ)
-//  schedule_next_irq();
-//
-// if (flags & 1) {
-//  lastBytes = out_current->feed(spu.pSpuBuffer, (unsigned char *)spu.pS - spu.pSpuBuffer);
-//  //spu.pSpuBuffer = spu.spuBuffer[spu.whichBuffer = ((spu.whichBuffer + 1) & 3)];
-//  spu.pS = (short *)spu.pSpuBuffer + (lastBytes >> 1);
-//
-//  //if (spu_config.iTempo) {
-//   if (!out_current->busy() && nsTo > 0) {
-//    // cause more samples to be generated
-//    // (and break some games because of bad sync)
-//    if (psxType) {
-//        spu.cycles_played -= SPU_FREQ / 50 / 2 * 768;  // Config.PsxType = 1, PAL 50Fps/1s
-//    } else {
-//        spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, PAL 60Fps/1s
+//    if (spuThreadId == LWP_THREAD_NULL)
+//    {
+//        stopAudio = false;
+//        LWP_InitQueue(&spuQueue);
+//        LWP_CreateThread(&spuThreadId, spuMainThread, NULL, NULL, 0, 85);
 //    }
-//   }
-// }
+//    else
+//    {
+//        LWP_ThreadSignal(spuQueue);
+//    }
+    int lastBytes;
+    int nsTo = do_samples(cycle, spu_config.iUseFixedUpdates);
+
+ if (spu.spuCtrl & CTRL_IRQ)
+  schedule_next_irq();
+
+ if (flags & 1) {
+  lastBytes = out_current->feed(spu.pSpuBuffer, (unsigned char *)spu.pS - spu.pSpuBuffer);
+  //spu.pSpuBuffer = spu.spuBuffer[spu.whichBuffer = ((spu.whichBuffer + 1) & 3)];
+  spu.pS = (short *)spu.pSpuBuffer + (lastBytes >> 1);
+
+  //if (spu_config.iTempo) {
+   if (!out_current->busy() && nsTo > 0) {
+    // cause more samples to be generated
+    // (and break some games because of bad sync)
+    if (psxType) {
+        spu.cycles_played -= SPU_FREQ / 50 / 2 * 768;  // Config.PsxType = 1, PAL 50Fps/1s
+    } else {
+        spu.cycles_played -= SPU_FREQ / 60 / 2 * 768;  // Config.PsxType = 0, PAL 60Fps/1s
+    }
+   }
+ }
 }
 
 // SPU UPDATE... new epsxe func
@@ -1637,11 +1637,11 @@ extern char shutdown;
 // SPUCLOSE: called before shutdown
 long DF_SPUclose(void)
 {
-    stopAudio = true;
-    if (spuQueue != LWP_TQUEUE_NULL)
-    {
-        LWP_ThreadSignal(spuQueue);
-    }
+//    stopAudio = true;
+//    if (spuQueue != LWP_TQUEUE_NULL)
+//    {
+//        LWP_ThreadSignal(spuQueue);
+//    }
 
  if (!spu.bSPUIsOpen) return 0;                        // some security
 
@@ -1678,12 +1678,12 @@ long DF_SPUclose(void)
 
                                         // no more streaming
 
-    if (spuThreadId != LWP_THREAD_NULL)
-    {
-        LWP_JoinThread(spuThreadId, NULL);
-        LWP_CloseQueue(spuQueue);
-        spuThreadId = LWP_THREAD_NULL;
-    }
+//    if (spuThreadId != LWP_THREAD_NULL)
+//    {
+//        LWP_JoinThread(spuThreadId, NULL);
+//        LWP_CloseQueue(spuQueue);
+//        spuThreadId = LWP_THREAD_NULL;
+//    }
 
  return 0;
 }

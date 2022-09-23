@@ -149,10 +149,10 @@ void cdrWrite3(unsigned char rt);
 int cdrFreeze(gzFile f, int Mode);
 
 bool swapIso;
-void (*p_cdrPlayCddaData)(int timePlus, int isEnd, s16* cddaBuf);
-void (*p_cdrAttenuate)(s16 *buf, int samples, int stereo);
 
 #define CDDA_FRAME_COUNT 4
+#define PS_SPU_FREQ	48000
+#define SINC (((u32)1 << 16) * 44100 / (PS_SPU_FREQ))
 u8* cddaBufPtr;
 
 #ifdef __cplusplus

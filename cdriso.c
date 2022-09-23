@@ -54,12 +54,11 @@ static bool multifile = FALSE;
 static unsigned char cdbuffer[CD_FRAMESIZE_RAW];
 static unsigned char subbuffer[SUB_FRAMESIZE];
 
-#define PS_SPU_FREQ	48000
-#define SINC (((u32)1 << 16) * 44100 / (PS_SPU_FREQ))
 static unsigned char sndbuffer[CD_FRAMESIZE_RAW * CDDA_FRAME_COUNT];
 static unsigned long sndbufferPitch[PS_SPU_FREQ * (sizeof(sndbuffer) >> 2) / 44100 + 4];
 
 #define CDDA_FRAMETIME			(1000 * CDDA_FRAME_COUNT / 75)
+#define CDDA_READTIME           (1000000 / 75)  // 13333 us
 
 //static pthread_t threadid;
 static lwp_t threadid = LWP_THREAD_NULL;
@@ -177,9 +176,6 @@ static long GetTickCount(void) {
 
 static void *playthread(void *param)
 {
-    usleep(CD_FRAMESIZE_RAW * CDDA_FRAME_COUNT >> 1);
-    //fseek(cddaHandle, cdda_file_offset, SEEK_SET);
-
 	long osleep, d, t, i, s, startPos;
 	unsigned char	tmp;
 	int ret = 0, sector_offs, readSectors;
@@ -188,25 +184,6 @@ static void *playthread(void *param)
 
 	while (playing) {
 		s = 0;
-		/*for (i = 0; i < CDDA_FRAME_COUNT; i++) {
-			sector_offs = cdda_cur_sector - cdda_first_sector;
-			if (sector_offs <= 0) {
-				d = CD_FRAMESIZE_RAW;
-				memset(sndbuffer + s, 0, d);
-			}
-			else {
-				d = cdimg_read_func(cddaHandle, cdda_file_offset,
-					sndbuffer + s, sector_offs);
-				if (d < CD_FRAMESIZE_RAW)
-                {
-                    s += d;
-                    break;
-                }
-			}
-
-			s += d;
-			cdda_cur_sector++;
-		}*/
 		if (cdda_cur_sector - cdda_first_sector < 0)
         {
             sector_offs = 0;
@@ -227,28 +204,10 @@ static void *playthread(void *param)
         s = fread(sndbuffer + startPos, 1, readSectors * CD_FRAMESIZE_RAW, cddaHandle);
         cdda_cur_sector += CDDA_FRAME_COUNT;
 
-        /*if (cdda_cur_sector - cdda_first_sector < 0)
-        {
-            //memset(sndbuffer, 0, CD_FRAMESIZE_RAW);
-            //s = CD_FRAMESIZE_RAW;
-            cdda_cur_sector += CDDA_FRAME_COUNT;
-            continue;
-        }
-        else
-        {
-            //sector_offs = cdda_cur_sector - cdda_first_sector;
-            s = fread(sndbuffer, 1, CD_FRAMESIZE_RAW, cddaHandle);
-            cdda_cur_sector += CDDA_FRAME_COUNT;
-        }*/
-
 		if (s == 0) {
 			playing = FALSE;
 			initial_offset = 0;
-			//p_cdrPlayCddaData(CDDA_FRAME_COUNT, 1, (unsigned short *)sndbuffer);
 			break;
-			//// Hack, when reach the end, start from the beginning
-			//cdda_cur_sector = cdda_first_sector;
-			//continue;
 		}
 
 		if (!cdr.Muted && playing) {
@@ -282,7 +241,6 @@ static void *playthread(void *param)
 
 			// can't do it yet due to readahead..
 			//cdrAttenuate((short *)sndbuffer, s / 4, 1);
-			//p_cdrAttenuate((short *)sndbufferPitch, iSize << 1, 1);
 			do {
 				ret = SPU_playCDDAchannel((short *)sndbufferPitch, iSize << 2);
 				if (ret == 0x7761)
@@ -299,9 +257,9 @@ static void *playthread(void *param)
 			// HACK: stop feeding data while emu is paused
 			extern int stop;
 			while (stop && playing)
-         {
+            {
 				usleep(10000);
-         }
+            }
 
 			now = GetTickCount();
 			osleep = t - now;
@@ -319,14 +277,20 @@ static void *playthread(void *param)
 		}
 		else
         {
-            //p_cdrPlayCddaData(CDDA_FRAME_COUNT, 0, (unsigned short *)sndbuffer);
             //usleep(CD_FRAMESIZE_RAW * CDDA_FRAME_COUNT >> 1);
-            usleep((cdr.Mode & 0x80) ? (13333 * CDDA_FRAME_COUNT / 2) : 13333 * CDDA_FRAME_COUNT);
+            //p_cdrAttenuate((short *)sndbufferPitch, iSize << 1, 1);
+            usleep((cdr.Mode & 0x80) ? (CDDA_READTIME * CDDA_FRAME_COUNT / 2) : CDDA_READTIME * CDDA_FRAME_COUNT);
         }
 
+//        // HACK: stop feeding data while emu is paused
+//        extern int stop;
+//        while (stop && playing)
+//        {
+//            usleep(10000);
+//        }
+//        usleep((cdr.Mode & 0x80) ? (CDDA_READTIME * CDDA_FRAME_COUNT / 2) : CDDA_READTIME * CDDA_FRAME_COUNT);
 	}
 
-	//pthread_exit(0);  // TODO
 	LWP_JoinThread(threadid, NULL);
 	return NULL;
 }

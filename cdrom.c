@@ -180,11 +180,11 @@ int msf2SectS[] = {
 // 1x = 75 sectors per second
 // PSXCLK = 1 sec in the ps
 // so (PSXCLK / 75) = cdr read time (linuzappz)
-#define cdReadTime         (PSXCLK / 75)  // OK  = 13333 us
+#define cdReadTime         (PSXCLK / 75 / 2)  // OK  = 13333 us / 2  = 6666 us
 #define playAdpcmTime      178560  // =(PSXCLK * 930 / 4 / 44100) // OK = 5752 us
 #define WaitTime1st        (0x800)
 #define WaitTime1stInit    (0x13cce >> 1)
-#define WaitTime1stRead    (PSXCLK / 75)   // OK
+#define WaitTime1stRead    cdReadTime  // (PSXCLK / 75)   // OK
 #define WaitTime2ndGetID   (0x4a00)  // OK
 #define WaitTime2ndPause   (cdReadTime * 3) // OK
 
@@ -590,40 +590,9 @@ static void cdrPlayInterrupt_Autopause(s16* cddaBuf)
 	}
 }
 
-// called by playthread
-static void cdrPlayCddaData(int timePlus, int isEnd, s16* cddaBuf)
-{
-	if (!cdr.Play) return;
-
-	if (*(u32 *)cdr.SetSectorPlay >= *(u32 *)cdr.SetSectorEnd) {
-        #ifdef SHOW_DEBUG
-        sprintf(txtbuffer, "cdrPlayCddaData End");
-        DEBUG_print(txtbuffer, DBG_CDR4);
-        #endif // DISP_DEBUG
-		StopCdda();
-		cdr.TrackChanged = TRUE;
-	}
-
-	if (!cdr.Irq && !cdr.Stat && (cdr.Mode & (MODE_AUTOPAUSE | MODE_REPORT)))
-		cdrPlayInterrupt_Autopause(cddaBuf);
-
-    if (!cdr.Play) return;
-
-	cdr.SetSectorPlay[2] += timePlus;
-	if (cdr.SetSectorPlay[2] >= 75) {
-		cdr.SetSectorPlay[2] = 0;
-		cdr.SetSectorPlay[1]++;
-		if (cdr.SetSectorPlay[1] == 60) {
-			cdr.SetSectorPlay[1] = 0;
-			cdr.SetSectorPlay[0]++;
-		}
-	}
-
-	// update for CdlGetlocP/autopause
-	generate_subq(cdr.SetSectorPlay);
-}
-
 static int cddaBufIdx = 0;
+static unsigned long sndbufferPitch[PS_SPU_FREQ * ((CD_FRAMESIZE_RAW * CDDA_FRAME_COUNT) >> 2) / 44100 + 4];
+
 // also handles seek
 void cdrPlayInterrupt()
 {
@@ -672,32 +641,45 @@ void cdrPlayInterrupt()
 	//	CDR_readCDDA(cdr.SetSectorPlay[0], cdr.SetSectorPlay[1], cdr.SetSectorPlay[2], (u8 *)read_buf);
 	//}
 
+	s16* playCddaBuf = (s16*)(cddaBufPtr + cddaBufIdx * CD_FRAMESIZE_RAW);
+	cddaBufIdx = (cddaBufIdx + 1) & (CDDA_FRAME_COUNT - 1);
+
 	if (!cdr.Irq && !cdr.Stat && (cdr.Mode & (MODE_AUTOPAUSE|MODE_REPORT)))
     {
-        cdrPlayInterrupt_Autopause((u16*)(cddaBufPtr + cddaBufIdx * CD_FRAMESIZE_RAW));
-        cddaBufIdx = (cddaBufIdx + 1) & (CDDA_FRAME_COUNT - 1);
+        cdrPlayInterrupt_Autopause(playCddaBuf);
     }
 
 	if (!cdr.Play) return;
-	//#ifdef DISP_DEBUG
-    //PRINT_LOG2("Bef CDR_readCDDA==Muted Mode %d %d", cdr.Muted, cdr.Mode);
-    //#endif // DISP_DEBUG
-	/*if (CDR_readCDDA && !cdr.Muted && !Config.Cdda) {
-	//if (CDR_readCDDA && !cdr.Muted) {
-        #ifdef SHOW_DEBUG
-        sprintf(txtbuffer, "CDR_readCDDA time %d %d %d", cdr.SetSectorPlay[0], cdr.SetSectorPlay[1], cdr.SetSectorPlay[2]);
-        DEBUG_print(txtbuffer, DBG_CDR2);
-        #endif // DISP_DEBUG
-		//CDR_readCDDA(cdr.SetSectorPlay[0], cdr.SetSectorPlay[1],
-		//	cdr.SetSectorPlay[2], cdr.Transfer);
 
-		//cdrAttenuate((s16 *)cdr.Transfer, CD_FRAMESIZE_RAW / 4, 1);
-		//if (SPU_playCDDAchannel)
-		//	SPU_playCDDAchannel((short *)cdr.Transfer, CD_FRAMESIZE_RAW);
-		cdrAttenuate(read_buf, CD_FRAMESIZE_RAW / 4, 1);
-		if (SPU_playCDDAchannel)
-			SPU_playCDDAchannel(read_buf, CD_FRAMESIZE_RAW);
-	}*/
+//	if (!cdr.Muted && !Config.Cdda) {
+//        #ifdef SHOW_DEBUG
+//        sprintf(txtbuffer, "CDR_readCDDA time %d %d %d", cdr.SetSectorPlay[0], cdr.SetSectorPlay[1], cdr.SetSectorPlay[2]);
+//        DEBUG_print(txtbuffer, DBG_CDR2);
+//        #endif // DISP_DEBUG
+//
+//        // pitch cdda 48000
+//        s32 spos = 0x10000L;
+//        u32 *pS = (u32 *)playCddaBuf;
+//        u32 *psPitch = (u32 *)sndbufferPitch;
+//        u32 l = 0;
+//        s32 iSize = (PS_SPU_FREQ * (CD_FRAMESIZE_RAW >> 2)) / 44100;
+//        s32 i;
+//        for (i = 0; i < iSize; i++)
+//        {
+//            while (spos >= 0x10000L)
+//            {
+//                l = *pS++;
+//                spos -= 0x10000L;
+//            }
+//
+//            *psPitch++ = l;
+//            spos += SINC;
+//        }
+//
+//		cdrAttenuate((s16 *)sndbufferPitch, iSize << 1, 1);
+//		if (SPU_playCDDAchannel)
+//			SPU_playCDDAchannel((s16 *)sndbufferPitch, iSize << 2);
+//	}
 
 	cdr.SetSectorPlay[2]++;
 	if (cdr.SetSectorPlay[2] == 75) {
@@ -1822,9 +1804,6 @@ void cdrReset() {
 	cdr.AttenuatorRightToLeft = 0x00;
 	cdr.AttenuatorRightToRight = 0x80;
 	getCdInfo();
-
-	p_cdrPlayCddaData = cdrPlayCddaData;
-	p_cdrAttenuate = cdrAttenuate;
 }
 
 int cdrFreeze(gzFile f, int Mode) {
